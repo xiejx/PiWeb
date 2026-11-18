@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.rpi', 'Raspberry Pi') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-cpu me-1"></i>{{ t('rpi.title', 'Raspberry Pi') }}</h1>
+        <div class="muted-small">{{ t('rpi.subtitle', 'Firmware, clocks, interfaces and boot configuration.') }}</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="/rpi">
+        <i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}
+    </a>
+</div>
+
+{% if not metrics.available %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    {{ t('rpi.vcgencmd_missing', 'vcgencmd is not available on this system — firmware and clock metrics may be incomplete.') }}
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-speedometer2 me-1"></i>{{ t('rpi.firmware', 'Firmware & Clocks') }}</span>
+                <button class="btn btn-sm btn-outline-secondary" type="button" onclick="rpiMetrics()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <tbody id="rpiMetricsBody">
+                    {% for label, value in metric_rows %}
+                        <tr>
+                            <td class="ps-3"><strong>{{ label }}</strong></td>
+                            <td class="mono">{{ value }}</td>
+                        </tr>
+                    {% endfor %}
+                        <tr>
+                            <td class="ps-3"><strong>{{ t('rpi.codecs', 'Codecs') }}</strong></td>
+                            <td class="small">{{ codecs_text }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-graph-up me-1"></i>{{ t('rpi.tempchart', 'Temperature & CPU Frequency') }}</div>
+            <div class="card-body">
+                <canvas id="rpi-chart" height="180" style="width:100%"></canvas>
+                <p class="muted-small mt-2 mb-0">
+                    <span style="color:#d9534f">●</span> {{ t('rpi.temp', 'Temp (°C)') }}
+                    &nbsp; <span style="color:#337ab7">●</span> {{ t('rpi.freq', 'CPU (MHz)') }}
+                    &nbsp;— {{ t('rpi.sampled', 'sampled while this page is open.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <i class="bi bi-plug me-1"></i>{{ t('rpi.interfaces', 'Interfaces') }}
+        <small class="text-body-secondary">(raspi-config)</small>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <tbody>
+            {% for key, label in interfaces.items() %}
+                <tr>
+                    <td class="ps-3" style="width:200px"><strong>{{ label }}</strong></td>
+                    <td>
+                        <span class="badge {% if states[key] == 'enabled' %}text-bg-success{% elif states[key] == 'disabled' %}text-bg-secondary{% else %}text-bg-warning{% endif %}"
+                              id="iface-state-{{ key }}">{{ states[key] }}</span>
+                    </td>
+                    <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-success" type="button" onclick="rpiToggle('{{ key }}', 1)">
+                            {{ t('common.enable', 'Enable') }}
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="rpiToggle('{{ key }}', 0)">
+                            {{ t('common.disable', 'Disable') }}
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-transparent muted-small">
+        {{ t('rpi.iface_note', 'Some changes require a reboot. Camera toggle applies only to the legacy stack.') }}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-hdd-stack me-1"></i>{{ t('storage.title', 'Storage devices') }}</span>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadDisks()">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>{{ t('storage.device', 'Device') }}</th>
+                <th>{{ t('common.size', 'Size') }}</th>
+                <th>{{ t('storage.filesystem', 'Filesystem') }}</th>
+                <th>{{ t('storage.mountpoint', 'Mount point') }}</th>
+                <th class="text-end"></th>
+            </tr>
+            </thead>
+            <tbody id="diskBody">
+            <tr><td colspan="5" class="text-body-secondary">{{ t('common.loading', 'Loading…') }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-transparent muted-small" id="diskFooter">
+        {{ t('storage.note', 'Mount folders are created under the configured mount root. System partitions are never unmounted from this page.') }}
+    </div>
+</div>
+
+<div class="modal fade" id="mountModal" tabindex="-1" aria-labelledby="mountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mountModalLabel">{{ t('storage.mount', 'Mount device') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mono small text-body-secondary" id="mount-device-label">—</p>
+                <div class="mb-3">
+                    <label class="form-label" for="mount-name">{{ t('storage.folder', 'Folder name') }}</label>
+                    <input class="form-control mono" id="mount-name" maxlength="48" autocomplete="off">
+                    <div class="form-text" id="mount-path-hint">—</div>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="mount-readonly">
+                    <label class="form-check-label" for="mount-readonly">
+                        {{ t('storage.readonly', 'Mount read-only') }}
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('common.cancel', 'Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="mount-submit" onclick="submitMount()">
+                    <i class="bi bi-hdd-network me-1"></i>{{ t('storage.mount', 'Mount device') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-danger-subtle mt-3">
+    <div class="card-header text-danger">
+        <i class="bi bi-file-earmark-code me-1"></i>{{ t('rpi.bootconfig', 'Boot Configuration') }}
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <strong>{{ t('rpi.boot_warning_title', 'Change with care.') }}</strong>
+            {{ t('rpi.boot_warning', 'These files control how the Raspberry Pi boots. A wrong value in config.txt or cmdline.txt can make the Pi fail to boot or lose network/SSH access — which may require pulling the SD card and editing it on another computer to recover. A backup (.piweb.bak) is written before every save, but only edit these if you know what each line does.') }}
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <select class="form-select form-select-sm" id="boot-file" style="width:auto" onchange="bootLoad()">
+                <option value="config">config.txt</option>
+                <option value="cmdline">cmdline.txt</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="bootLoad()">
+                <i class="bi bi-folder2-open me-1"></i>{{ t('rpi.load', 'Load') }}
+            </button>
+            <button class="btn btn-sm btn-warning" type="button" id="boot-save-btn" onclick="bootSave()">
+                <i class="bi bi-save me-1"></i>{{ t('common.save', 'Save') }}
+            </button>
+            <span class="muted-small mono" id="boot-path"></span>
+        </div>
+
+        <textarea id="boot-content" class="form-control mono" rows="14" spellcheck="false"
+                  style="font-size:12px"></textarea>
+
+        <div id="boot-notice" class="alert mt-2 mb-0 d-none"></div>
+
+        <div class="muted-small mt-2">
+            <i class="bi bi-shield-check"></i>
+            {{ t('rpi.boot_backup_note', 'A backup (.piweb.bak) is written before each save. Most changes take effect after a reboot.') }}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function appendRow(body, label, value, extraClass) {
+        const row = document.createElement('tr');
+        const labelCell = document.createElement('td');
+        labelCell.className = 'ps-3';
+        const strong = document.createElement('strong');
+        strong.textContent = label;
+        labelCell.appendChild(strong);
+        const valueCell = document.createElement('td');
+        valueCell.textContent = value == null ? '' : String(value);
+        if (extraClass) valueCell.className = extraClass;
+        row.appendChild(labelCell);
+        row.appendChild(valueCell);
+        body.appendChild(row);
+    }
+
+    async function rpiMetrics() {
+        const body = document.getElementById('rpiMetricsBody');
+        if (!body) return;
+        try {
+            const data = await PiWeb.api('/ajax/rpi/metrics');
+            if (!data.ok) throw new Error(data.error || 'vcgencmd not available');
+            body.textContent = '';
+            const rows = [
+                ['Firmware', data.firmware],
+                ['ARM clock', data.arm_clock],
+                ['Core clock', data.core_clock],
+                ['V3D clock', data.v3d_clock],
+                ['Core voltage', data.core_volt],
+                ['SDRAM voltage', data.sdram_volt],
+                ['ARM memory', data.mem_arm],
+                ['GPU memory', data.mem_gpu]
+            ];
+            rows.forEach(function (row) { appendRow(body, row[0], row[1], 'mono'); });
+            const codecs = data.codecs || {};
+            const text = Object.keys(codecs).map(function (name) {
+                return name + ': ' + codecs[name];
+            }).join(', ');
+            appendRow(body, 'Codecs', text, 'small');
+        } catch (error) {
+            body.textContent = '';
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.className = 'ps-3 text-danger';
+            cell.textContent = error.message || 'Request failed.';
+            row.appendChild(cell);
+            body.appendChild(row);
+        }
+    }
+
+    function applyStates(states) {
+        Object.keys(states).forEach(function (key) {
+            const badge = document.getElementById('iface-state-' + key);
+            if (!badge) return;
+            const state = states[key];
+            badge.textContent = state;
+            badge.className = 'badge ' + (
+                state === 'enabled' ? 'text-bg-success'
+                    : state === 'disabled' ? 'text-bg-secondary'
+                        : 'text-bg-warning'
+            );
+        });
+    }
+
+    async function rpiIfaceStatus() {
+        try {
+            const data = await PiWeb.api('/ajax/rpi/interfaces');
+            applyStates(data.states || {});
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function rpiToggle(iface, enable) {
+        if (!confirm((enable ? 'Enable ' : 'Disable ') + iface.toUpperCase() + '?')) return;
+        try {
+            const data = await PiWeb.api('/ajax/rpi/interface', {
+                method: 'POST',
+                body: { iface: iface, enable: enable }
+            });
+            PiWeb.toast(data.message || 'Done.');
+            await rpiIfaceStatus();
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    function bootNotice(level, message) {
+        const notice = document.getElementById('boot-notice');
+        if (!notice) return;
+        if (!message) {
+            notice.className = 'alert d-none';
+            notice.textContent = '';
+            return;
+        }
+        notice.className = 'alert alert-' + level + ' mt-2 mb-0';
+        notice.textContent = message;
+    }
+
+    async function bootLoad() {
+        const select = document.getElementById('boot-file');
+        const textarea = document.getElementById('boot-content');
+        const pathLabel = document.getElementById('boot-path');
+        if (!select || !textarea) return;
+        bootNotice('info', '');
+        textarea.value = 'Loading…';
+        try {
+            const data = await PiWeb.api('/ajax/rpi/boot?file=' + encodeURIComponent(select.value));
+            if (!data.ok) throw new Error(data.error || 'Could not read the file');
+            textarea.value = data.content || '';
+            if (pathLabel) pathLabel.textContent = data.path || '';
+            if (data.missing) {
+                bootNotice('warning', data.message || 'This file does not exist yet.');
+            }
+        } catch (error) {
+            textarea.value = '';
+            if (pathLabel) pathLabel.textContent = '';
+            bootNotice('danger', error.message);
+        }
+    }
+
+    async function bootSave() {
+        const select = document.getElementById('boot-file');
+        const textarea = document.getElementById('boot-content');
+        const pathLabel = document.getElementById('boot-path');
+        const button = document.getElementById('boot-save-btn');
+        if (!select || !textarea) return;
+
+        const file = select.value;
+        const fileName = file === 'cmdline' ? 'cmdline.txt' : 'config.txt';
+        const path = (pathLabel && pathLabel.textContent.trim())
+            || '/boot/firmware/' + fileName;
+
+        if (!confirm(
+            'WARNING — editing boot files can stop the Raspberry Pi from booting.\n\n'
+            + 'You are about to overwrite:\n    ' + path + '\n\n'
+            + 'A backup (' + fileName + '.piweb.bak) will be written first.\n'
+            + 'Most changes take effect after a reboot.\n\n'
+            + 'Save this file now?'
+        )) return;
+
+        const previous = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = 'Saving…';
+        bootNotice('info', 'Saving ' + fileName + '…');
+
+        try {
+            const data = await PiWeb.api('/ajax/rpi/boot', {
+                method: 'POST',
+                body: { file: file, content: textarea.value }
+            });
+            if (!data.ok) throw new Error(data.error || 'unknown error');
+            bootNotice('success', fileName + ' saved. ' + (data.message || '')
+                + ' Reboot for changes to take effect.');
+        } catch (error) {
+            bootNotice('danger', 'Save failed: ' + (error.message || 'unknown error'));
+        } finally {
+            button.disabled = false;
+            button.innerHTML = previous;
+        }
+    }
+
+    // ── Storage ────────────────────────────────────────────────────────────
+    let diskMountRoot = '/mnt';
+    let diskMountDevice = '';
+
+    function diskFolderName(value) {
+        const cleaned = String(value || '')
+            .replace(/[^A-Za-z0-9._-]+/g, '-')
+            .replace(/^[-._]+|[-._]+$/g, '');
+        return cleaned || 'disk';
+    }
+
+    function updateMountHint() {
+        const input = document.getElementById('mount-name');
+        const hint = document.getElementById('mount-path-hint');
+        if (!input || !hint) return;
+        hint.textContent = diskMountRoot.replace(/\/$/, '') + '/' + diskFolderName(input.value);
+    }
+
+    function renderDisks(disks) {
+        const body = document.getElementById('diskBody');
+        if (!body) return;
+        body.textContent = '';
+        if (!disks.length) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            cell.className = 'text-body-secondary';
+            cell.textContent = 'No block devices were found.';
+            row.appendChild(cell);
+            body.appendChild(row);
+            return;
+        }
+
+        disks.forEach(function (disk) {
+            const row = document.createElement('tr');
+
+            const deviceCell = document.createElement('td');
+            const deviceName = document.createElement('div');
+            deviceName.className = 'mono';
+            deviceName.textContent = disk.path;
+            deviceCell.appendChild(deviceName);
+            const meta = document.createElement('div');
+            meta.className = 'muted-small';
+            meta.textContent = disk.name
+                + (disk.label ? ' · ' + disk.label : '')
+                + (disk.removable ? ' · removable' : '');
+            deviceCell.appendChild(meta);
+            row.appendChild(deviceCell);
+
+            const sizeCell = document.createElement('td');
+            sizeCell.textContent = disk.size_h;
+            row.appendChild(sizeCell);
+
+            const fsCell = document.createElement('td');
+            if (disk.fstype) {
+                const badge = document.createElement('span');
+                badge.className = 'badge text-bg-light mono';
+                badge.textContent = disk.fstype;
+                fsCell.appendChild(badge);
+            } else {
+                fsCell.textContent = '—';
+            }
+            row.appendChild(fsCell);
+
+            const mountCell = document.createElement('td');
+            mountCell.className = 'mono';
+            mountCell.textContent = disk.mountpoint || '—';
+            row.appendChild(mountCell);
+
+            const actionCell = document.createElement('td');
+            actionCell.className = 'text-end';
+            if (disk.mounted) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-sm btn-outline-danger';
+                button.textContent = 'Unmount';
+                button.addEventListener('click', function () { unmountDisk(disk.path); });
+                actionCell.appendChild(button);
+            } else if (disk.fstype) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.textContent = 'Mount';
+                button.addEventListener('click', function () {
+                    openMountModal(disk.path, disk.label, disk.name);
+                });
+                actionCell.appendChild(button);
+            } else {
+                actionCell.textContent = '—';
+            }
+            row.appendChild(actionCell);
+
+            body.appendChild(row);
+        });
+    }
+
+    async function loadDisks() {
+        const body = document.getElementById('diskBody');
+        try {
+            const data = await PiWeb.api('/ajax/rpi/disks');
+            diskMountRoot = data.mount_root || '/mnt';
+            updateMountHint();
+            renderDisks(data.disks || []);
+        } catch (error) {
+            if (body) {
+                body.textContent = '';
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 5;
+                cell.className = 'text-danger';
+                cell.textContent = error.message || 'Could not list block devices.';
+                row.appendChild(cell);
+                body.appendChild(row);
+            }
+        }
+    }
+
+    function openMountModal(device, label, fallback) {
+        diskMountDevice = device;
+        const labelElement = document.getElementById('mount-device-label');
+        if (labelElement) labelElement.textContent = device + (label ? ' · ' + label : '');
+        const input = document.getElementById('mount-name');
+        if (input) input.value = diskFolderName(label || fallback || 'usb');
+        const readonly = document.getElementById('mount-readonly');
+        if (readonly) readonly.checked = false;
+        updateMountHint();
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('mountModal'));
+        modal.show();
+    }
+
+    async function submitMount() {
+        const nameInput = document.getElementById('mount-name');
+        const readonlyInput = document.getElementById('mount-readonly');
+        const button = document.getElementById('mount-submit');
+        if (!diskMountDevice) return;
+
+        const previous = button ? button.innerHTML : '';
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = 'Mounting…';
+        }
+        try {
+            const data = await PiWeb.api('/ajax/rpi/disk/mount', {
+                method: 'POST',
+                body: {
+                    device: diskMountDevice,
+                    name: nameInput ? nameInput.value.trim() : '',
+                    read_only: readonlyInput ? readonlyInput.checked : false
+                }
+            });
+            PiWeb.toast(data.message || 'Mounted.');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('mountModal')).hide();
+            await loadDisks();
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = previous;
+            }
+        }
+    }
+
+    async function unmountDisk(device) {
+        if (!confirm('Unmount ' + device + '?\n\nMake sure no process is using files on it.')) return;
+        try {
+            const data = await PiWeb.api('/ajax/rpi/disk/unmount', {
+                method: 'POST',
+                body: { device: device }
+            });
+            PiWeb.toast(data.message || 'Unmounted.');
+            await loadDisks();
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    let chartData = [];
+
+    function drawChart() {
+        const canvas = document.getElementById('rpi-chart');
+        if (!canvas) return;
+        const width = canvas.width = Math.max(300, canvas.offsetWidth || 0);
+        const height = canvas.height;
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, width, height);
+
+        if (chartData.length < 2) {
+            context.fillStyle = '#999';
+            context.font = '12px sans-serif';
+            context.fillText('Collecting samples…', 10, 20);
+            return;
+        }
+
+        const pad = 4;
+        const temps = chartData.map(function (point) { return Number(point.temp) || 0; });
+        const freqs = chartData.map(function (point) { return Number(point.freq) || 0; });
+        const tempMax = Math.max(90, Math.max.apply(null, temps));
+        const freqMax = Math.max.apply(null, freqs) || 1;
+
+        function line(values, maximum, color) {
+            context.beginPath();
+            values.forEach(function (value, index) {
+                const x = pad + (width - 2 * pad) * (index / (values.length - 1));
+                const y = height - pad - (height - 2 * pad) * (value / maximum);
+                if (index === 0) context.moveTo(x, y);
+                else context.lineTo(x, y);
+            });
+            context.strokeStyle = color;
+            context.lineWidth = 2;
+            context.stroke();
+        }
+
+        line(temps, tempMax, '#d9534f');
+        line(freqs, freqMax, '#337ab7');
+    }
+
+    async function chartPoll() {
+        try {
+            const data = await PiWeb.api('/ajax/rpi/history');
+            if (Array.isArray(data.history)) {
+                chartData = data.history;
+                drawChart();
+            }
+        } catch (error) {
+            // Keep the previous chart when the sample request fails.
+        }
+    }
+
+    function initRpiPage() {
+        rpiMetrics();
+        bootLoad();
+        loadDisks();
+        const mountName = document.getElementById('mount-name');
+        if (mountName) mountName.addEventListener('input', updateMountHint);
+        chartPoll();
+        setInterval(chartPoll, 30000);
+        window.addEventListener('resize', drawChart);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRpiPage);
+    } else {
+        initRpiPage();
+    }
+</script>
+{% endblock %}

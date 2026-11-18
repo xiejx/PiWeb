@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.sensors', 'Sensors') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-thermometer-half me-1"></i>{{ t('sensors.title', 'Local sensors') }}</h1>
+        <div class="muted-small">{{ t('sensors.subtitle', 'Read the SoC, 1-Wire probes and sensors configured in config.toml.') }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="reloadSensors()">
+            <i class="bi bi-arrow-clockwise me-1"></i>{{ t('sensors.rescan', 'Rescan') }}
+        </button>
+        <button class="btn btn-primary btn-sm" type="button" id="sensorReadAll" onclick="readAllSensors()">
+            <i class="bi bi-activity me-1"></i>{{ t('sensors.read_all', 'Read all') }}
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-cpu me-1"></i>{{ t('sensors.detected', 'Detected sensors') }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>{{ t('sensors.name', 'Sensor') }}</th>
+                <th>{{ t('sensors.type', 'Type') }}</th>
+                <th>{{ t('sensors.unit', 'Unit') }}</th>
+                <th>{{ t('sensors.value', 'Value') }}</th>
+                <th class="text-end"></th>
+            </tr>
+            </thead>
+            <tbody id="sensorBody">
+            {% for sensor in sensors %}
+                <tr>
+                    <td class="fw-semibold">{{ sensor.name }}</td>
+                    <td><span class="badge text-bg-light mono">{{ sensor.kind }}</span></td>
+                    <td class="mono">{{ sensor.unit or '' }}</td>
+                    <td class="mono" data-sensor-id="{{ sensor.id }}">
+                        <span class="text-body-secondary">—</span>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" type="button"
+                                data-sensor-id="{{ sensor.id }}" onclick="readSensor(this.dataset.sensorId)">
+                            <i class="bi bi-play-fill me-1"></i>{{ t('sensors.read', 'Read') }}
+                        </button>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="text-body-secondary">{{ t('sensors.none', 'No local sensors were detected.') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-transparent muted-small">
+        {{ t('sensors.note', 'DS18B20 probes are discovered automatically through 1-Wire. Add DHT or command sensors under [sensors] in config.toml.') }}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function applySensor(sensor) {
+        const cell = document.querySelector('td[data-sensor-id="' + sensor.id + '"]');
+        if (!cell) return;
+        cell.textContent = '';
+        if (sensor.error) {
+            const error = document.createElement('span');
+            error.className = 'text-danger small';
+            error.textContent = sensor.error;
+            cell.appendChild(error);
+            return;
+        }
+        const value = document.createElement('span');
+        value.textContent = sensor.display || (sensor.value === null ? '—' : String(sensor.value));
+        cell.appendChild(value);
+    }
+
+    async function readSensor(id) {
+        try {
+            const data = await PiWeb.api('/ajax/sensors/read?id=' + encodeURIComponent(id));
+            if (data.sensor) applySensor(data.sensor);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function readAllSensors() {
+        const button = document.getElementById('sensorReadAll');
+        if (!button) return;
+        const previous = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = 'Reading…';
+        try {
+            const data = await PiWeb.api('/ajax/sensors/read-all');
+            const list = data.sensors || [];
+            list.forEach(applySensor);
+            const failed = list.filter(function (sensor) { return sensor.error; }).length;
+            PiWeb.toast('Read ' + list.length + ' sensors' + (failed ? ' (' + failed + ' failed).' : '.'));
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = previous;
+        }
+    }
+
+    async function reloadSensors() {
+        try {
+            const data = await PiWeb.api('/ajax/sensors');
+            const body = document.getElementById('sensorBody');
+            if (!body) return;
+            body.textContent = '';
+            const sensors = data.sensors || [];
+            if (!sensors.length) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 5;
+                cell.className = 'text-body-secondary';
+                cell.textContent = 'No local sensors were detected.';
+                row.appendChild(cell);
+                body.appendChild(row);
+                return;
+            }
+            sensors.forEach(function (sensor) {
+                const row = document.createElement('tr');
+
+                const name = document.createElement('td');
+                name.className = 'fw-semibold';
+                name.textContent = sensor.name;
+                row.appendChild(name);
+
+                const kind = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = 'badge text-bg-light mono';
+                badge.textContent = sensor.kind;
+                kind.appendChild(badge);
+                row.appendChild(kind);
+
+                const unit = document.createElement('td');
+                unit.className = 'mono';
+                unit.textContent = sensor.unit || '';
+                row.appendChild(unit);
+
+                const value = document.createElement('td');
+                value.className = 'mono';
+                value.dataset.sensorId = sensor.id;
+                const placeholder = document.createElement('span');
+                placeholder.className = 'text-body-secondary';
+                placeholder.textContent = '—';
+                value.appendChild(placeholder);
+                row.appendChild(value);
+
+                const action = document.createElement('td');
+                action.className = 'text-end';
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.innerHTML = '<i class="bi bi-play-fill me-1"></i>Read';
+                button.addEventListener('click', function () { readSensor(sensor.id); });
+                action.appendChild(button);
+                row.appendChild(action);
+
+                body.appendChild(row);
+            });
+            PiWeb.toast('Sensor list refreshed — ' + sensors.length + ' found.');
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.dashboard', 'Dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">{{ t('nav.dashboard', 'Dashboard') }}</h1>
+        <div class="muted-small">{{ d.hostname }}{% if d.info.model %} · {{ d.info.model }}{% endif %}</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#menuModal">
+            <i class="bi bi-arrows-move me-1"></i>{{ t('dash.customize_menu', 'Customize menu') }}
+        </button>
+        <a class="btn btn-outline-secondary btn-sm" href="/check">
+            <i class="bi bi-clipboard-check me-1"></i>{{ t('nav.check', 'System Check') }}
+        </a>
+        <a class="btn btn-primary btn-sm" href="/actions">
+            <i class="bi bi-lightning-charge me-1"></i>{{ t('nav.actions', 'Actions') }}
+        </a>
+    </div>
+</div>
+
+<div id="dashboardLive"
+     hx-get="/partials/dashboard/live"
+     hx-trigger="every 5s"
+     hx-swap="innerHTML">
+    {% include "partials/dashboard_live.html" %}
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-up-arrow me-1"></i>{{ t('dash.live_chart', 'Live trends') }}</span>
+        <span class="muted-small">
+            <span class="live-dot"></span> {{ t('dash.live_note', 'SSE · every 2 s') }}
+            · <span id="liveChartClock">—</span>
+        </span>
+    </div>
+    <div class="card-body">
+        <canvas id="liveChart" height="190" style="width: 100%; height: 190px; display: block"></canvas>
+        <div class="muted-small mt-2 d-flex flex-wrap gap-3">
+            <span><span class="live-legend live-legend-temp"></span>{{ t('dash.temp', 'CPU temperature') }}</span>
+            <span><span class="live-legend live-legend-load"></span>{{ t('dash.load', 'CPU load') }}</span>
+            <span id="liveNetSummary" class="ms-auto mono">—</span>
+        </div>
+    </div>
+</div>
+
+{% if d.pinned %}
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pin-angle me-1"></i>{{ t('dash.pinned', 'Pinned scripts') }}</span>
+        <a class="btn btn-sm btn-outline-secondary" href="/scripts">{{ t('scripts.title', 'Scripts') }}</a>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for name in d.pinned %}
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold mono">{{ name }}</span>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    hx-get="/partials/dashboard/tile?name={{ name|urlencode }}&force=1"
+                                    hx-target="#tile-{{ loop.index }}"
+                                    hx-swap="innerHTML">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                        <div id="tile-{{ loop.index }}"
+                             hx-get="/partials/dashboard/tile?name={{ name|urlencode }}"
+                             hx-trigger="load, every 30s"
+                             hx-swap="innerHTML">
+                            <div class="muted-small">{{ t('common.loading', 'Loading…') }}</div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mt-0">
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('dash.system', 'System information') }}</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-body-secondary">Hostname</dt><dd class="col-7 mono">{{ d.info.hostname }}</dd>
+                    <dt class="col-5 text-body-secondary">OS</dt><dd class="col-7">{{ d.info.os }}</dd>
+                    <dt class="col-5 text-body-secondary">Kernel</dt><dd class="col-7 mono">{{ d.info.kernel }}</dd>
+                    {% if d.info.model %}
+                    <dt class="col-5 text-body-secondary">Model</dt><dd class="col-7">{{ d.info.model }}</dd>
+                    {% endif %}
+                    <dt class="col-5 text-body-secondary">CPU</dt><dd class="col-7">{{ d.info.cpu }}</dd>
+                    <dt class="col-5 text-body-secondary">Cores</dt><dd class="col-7">{{ d.info.cores }}</dd>
+                    <dt class="col-5 text-body-secondary">Uptime</dt><dd class="col-7">{{ d.info.uptime }}</dd>
+                    <dt class="col-5 text-body-secondary">Load</dt><dd class="col-7 mono">{{ d.info.load }}</dd>
+                    <dt class="col-5 text-body-secondary">Processes</dt><dd class="col-7">{{ d.processes }}</dd>
+                    <dt class="col-5 text-body-secondary">Now</dt><dd class="col-7 mono">{{ d.clock.datetime }}</dd>
+                    <dt class="col-5 text-body-secondary">Timezone</dt><dd class="col-7 mono">{{ d.clock.timezone }}</dd>
+                    <dt class="col-5 text-body-secondary">NTP</dt>
+                    <dd class="col-7">
+                        {% if d.clock.ntp_synced is none %}
+                            <span class="badge badge-soft-muted">{{ t('dash.ntp_unknown', 'unknown') }}</span>
+                        {% elif d.clock.ntp_synced %}
+                            <span class="badge badge-soft-success">{{ t('dash.ntp_synced', 'synced') }}</span>
+                        {% else %}
+                            <span class="badge badge-soft-warning">{{ t('dash.ntp_unsynced', 'not synced') }}</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-activity me-1"></i>{{ t('dash.top', 'Top processes by memory') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                    <tr>
+                        <th>PID</th><th>{{ t('common.user', 'User') }}</th><th>CPU</th><th>MEM</th>
+                        <th>{{ t('proc.command', 'Command') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for process in d.top %}
+                        <tr>
+                            <td class="mono">{{ process.pid }}</td>
+                            <td>{{ process.user }}</td>
+                            <td>{{ process.cpu }}%</td>
+                            <td>{{ process.mem }}%</td>
+                            <td class="mono text-truncate" style="max-width: 360px" title="{{ process.command }}">{{ process.command }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="text-body-secondary">{{ t('proc.none', 'No processes found.') }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-hdd me-1"></i>{{ t('dash.disks', 'Storage') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>{{ t('common.mount', 'Mount') }}</th><th>{{ t('common.size', 'Size') }}</th><th>{{ t('dash.used', 'Used') }}</th><th>{{ t('dash.available', 'Available') }}</th><th>%</th></tr></thead>
+                    <tbody>
+                    {% for part in d.partitions %}
+                        <tr>
+                            <td class="mono">{{ part.mount }}</td>
+                            <td>{{ part.size }}</td>
+                            <td>{{ part.used }}</td>
+                            <td>{{ part.available }}</td>
+                            <td>{{ part.percent }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="text-body-secondary">{{ t('dash.no_disks', 'No storage information available.') }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if d.blocks %}
+            <div class="card-footer bg-transparent">
+                <div class="muted-small">
+                    {% for block in d.blocks %}
+                        <span class="badge text-bg-light mono me-1">{{ block.name }} · {{ block.size }} · {{ block.type }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-people me-1"></i>{{ t('dash.logged_in', 'Logged-in users') }}</div>
+            <div class="card-body">
+                {% if d.users %}
+                    <ul class="list-unstyled mb-0">
+                        {% for user in d.users %}
+                            <li class="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                                <span class="fw-semibold">{{ user.user }}</span>
+                                <span class="muted-small">{{ user.tty }} · {{ user.since }} {% if user.from %}({{ user.from }}){% endif %}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-body-secondary mb-0">{{ t('dash.no_users', 'No interactive sessions.') }}</p>
+                {% endif %}
+                {% if d.usb %}
+                    <hr>
+                    <div class="stat-label mb-2">USB</div>
+                    <ul class="list-unstyled mb-0 small mono">
+                        {% for device in d.usb %}<li class="text-truncate">{{ device }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="menuModal" tabindex="-1" aria-labelledby="menuModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="menuModalLabel">{{ t('dash.customize_menu', 'Customize menu') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-body-secondary">{{ t('dash.drag_hint', 'Drag to reorder the navigation entries.') }}</p>
+                <ul class="list-group" id="menuSortable">
+                    {% for module in nav_modules %}
+                        <li class="list-group-item d-flex align-items-center gap-2" data-id="{{ module.key }}">
+                            <i class="bi bi-grip-vertical text-body-secondary"></i>
+                            <span>{{ t('nav.' ~ module.key, module.title) }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('common.cancel', 'Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="saveMenuOrder">{{ t('common.save', 'Save') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/sortable.min.js?v={{ asset_version }}"></script>
+<script>
+    (function () {
+        const canvas = document.getElementById('liveChart');
+        if (!canvas || !window.EventSource) return;
+
+        const maxPoints = 90; // 3 minutes at one sample every 2 s
+        const points = [];
+        const height = 190;
+        let source = null;
+
+        function formatBytes(value) {
+            if (!value || value < 1) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let index = 0;
+            let number = value;
+            while (number >= 1024 && index < units.length - 1) {
+                number /= 1024;
+                index += 1;
+            }
+            return number.toFixed(number >= 100 ? 0 : 1) + ' ' + units[index];
+        }
+
+        function setText(id, text) {
+            const element = document.getElementById(id);
+            if (element) element.textContent = text;
+        }
+
+        function setBar(id, percent) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            const value = Math.max(0, Math.min(100, Number(percent) || 0));
+            element.style.width = value + '%';
+            element.className = 'progress-bar bg-' + (value >= 90 ? 'danger' : value >= 70 ? 'warning' : 'success');
+        }
+
+        function draw() {
+            const ratio = window.devicePixelRatio || 1;
+            const width = canvas.clientWidth || 600;
+            if (!width) return;
+            if (canvas.width !== Math.round(width * ratio)) {
+                canvas.width = Math.round(width * ratio);
+                canvas.height = Math.round(height * ratio);
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(120, 130, 150, 0.18)';
+            ctx.lineWidth = 1;
+            for (let line = 0; line <= 4; line += 1) {
+                const y = 10 + line * (height - 30) / 4;
+                ctx.beginPath();
+                ctx.moveTo(30, y);
+                ctx.lineTo(width - 8, y);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = 'rgba(120, 130, 150, 0.85)';
+            ctx.font = '11px system-ui, sans-serif';
+            ctx.fillText('100 °C', 2, 14);
+            ctx.fillText('0 °C', 2, height - 18);
+            ctx.fillText('3 min', 30, height - 4);
+            ctx.fillText('now', width - 26, height - 4);
+
+            if (points.length < 2) return;
+            const stepX = (width - 42) / (maxPoints - 1);
+            const maxLoad = Math.max(1, ...points.map(function (point) { return point.load; })) * 1.1;
+
+            function line(key, scale, color) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                points.forEach(function (point, index) {
+                    const x = width - 10 - (points.length - 1 - index) * stepX;
+                    const y = 10 + (height - 30) * (1 - Math.min(1, point[key] / scale));
+                    if (index === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            line('temp', 100, '#d9534f');
+            line('load', maxLoad, '#3b82f6');
+        }
+
+        function update(data) {
+            if (!data || data.error) return;
+            const cores = Number(data.cores) || 1;
+            const loadOne = data.load && data.load.length ? Number(data.load[0]) : 0;
+
+            setText('liveTemp', Number(data.temp).toFixed(1) + ' °C');
+            setBar('liveTempBar', data.temp);
+            setText('liveTempNote', data.temp < 60 ? 'Cool' : data.temp < 75 ? 'Warm' : 'Hot');
+
+            setText('liveLoad', loadOne.toFixed(2));
+            setBar('liveLoadBar', loadOne / cores * 100);
+            if (data.load && data.load.length >= 3) {
+                setText('liveLoadNote', data.load[1] + ' · ' + data.load[2] + ' (5 / 15 min) · ' + cores + ' cores');
+            }
+
+            setText('liveMem', data.mem_used_h);
+            setBar('liveMemBar', data.mem_percent);
+            setText('liveMemNote', data.mem_percent + '% of ' + data.mem_total_h + ' used');
+
+            setText('liveDisk', data.disk_used_h);
+            setBar('liveDiskBar', data.disk_percent);
+            setText('liveDiskNote', data.disk_percent + '% of ' + data.disk_total_h + ' used');
+
+            setText('liveNow', data.now);
+            setText('liveChartClock', data.now);
+
+            let down = 0;
+            let up = 0;
+            (data.net || []).forEach(function (iface) {
+                down += Number(iface.rx) || 0;
+                up += Number(iface.tx) || 0;
+                setText('netRate-' + iface.name, formatBytes(iface.rx) + '/s / ' + formatBytes(iface.tx) + '/s');
+            });
+            setText('liveNetSummary', '↓ ' + formatBytes(down) + '/s   ↑ ' + formatBytes(up) + '/s');
+
+            points.push({ temp: Number(data.temp) || 0, load: loadOne });
+            if (points.length > maxPoints) points.shift();
+            draw();
+        }
+
+        function connect() {
+            if (source) return;
+            source = new EventSource('/ajax/dashboard/events');
+            source.onmessage = function (event) {
+                try {
+                    update(JSON.parse(event.data));
+                } catch (error) {
+                    /* ignore malformed frames */
+                }
+            };
+            source.onerror = function () {
+                /* EventSource reconnects automatically */
+            };
+        }
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                if (source) {
+                    source.close();
+                    source = null;
+                }
+            } else {
+                connect();
+            }
+        });
+        window.addEventListener('resize', draw);
+        draw();
+        connect();
+    })();
+</script>
+<script>
+    (function () {
+        const list = document.getElementById('menuSortable');
+        if (!list) return;
+        if (window.Sortable) {
+            new Sortable(list, { animation: 150, handle: '.bi-grip-vertical' });
+        }
+        document.getElementById('saveMenuOrder').addEventListener('click', async function () {
+            const order = Array.from(list.children).map(function (item) { return item.dataset.id; });
+            try {
+                await PiWeb.api('/ajax/menu_order', { method: 'POST', body: { order: order } });
+                location.reload();
+            } catch (error) {
+                PiWeb.toast(error.message, 'error');
+            }
+        });
+    })();
+</script>
+{% endblock %}

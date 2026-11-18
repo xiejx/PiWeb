@@ -1,0 +1,574 @@
+{% extends "base.html" %}
+{% block title %}{{ t('btn.title', 'Command Buttons') }}{% endblock %}
+
+{% block head %}
+<style>
+    .btn-draggable .drag-handle { cursor: grab; user-select: none; }
+    .btn-draggable.sortable-ghost { opacity: .45; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="buttonPage()" @buttons-reordered.window="applyOrder($event.detail)">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0">{{ t('btn.title', 'Command Buttons') }}</h1>
+        <button type="button" class="btn btn-success" @click="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>{{ t('btn.add', 'Add Command Button') }}
+        </button>
+    </div>
+
+    {% if load_error %}
+        <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ load_error }}
+        </div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-terminal me-1"></i>{{ t('btn.title', 'Command Buttons') }}</div>
+        <div class="card-body">
+            {% if not buttons %}
+                <div class="alert alert-info mb-0" role="alert">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {{ t('btn.empty', 'No buttons yet. Click Add Command Button to create one.') }}
+                </div>
+            {% else %}
+                <div id="buttons-sortable" class="d-flex flex-column gap-2">
+                    {% for button in buttons %}
+                        <div class="btn-draggable card" data-idx="{{ loop.index0 }}">
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="drag-handle text-body-secondary" title="{{ t('btn.drag', 'Drag to reorder') }}">
+                                        <i class="bi bi-grip-vertical"></i>
+                                    </span>
+                                    <div class="btn-group">
+                                        <button type="button"
+                                                class="btn {{ button.style|bs_style }} {{ button.size|bs_size }}"
+                                                @click="activate(indexOf($event), $event)">
+                                            {% if button.icon %}
+                                                <i class="bi bi-{{ button.icon|bi_icon }} me-1" aria-hidden="true"></i>
+                                            {% endif %}
+                                            {{ button.title }}
+                                        </button>
+                                        <button type="button"
+                                                class="btn {{ button.style|bs_style }} {{ button.size|bs_size }} dropdown-toggle dropdown-toggle-split"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">{{ t('btn.options', 'Options') }}</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <button type="button" class="dropdown-item" @click="openEdit(indexOf($event))">
+                                                    <i class="bi bi-pencil me-1"></i>{{ t('btn.edit', 'Edit') }}
+                                                </button>
+                                            </li>
+                                            {% if button.hash %}
+                                                <li>
+                                                    <button type="button" class="dropdown-item" @click="openEdit(indexOf($event))"
+                                                            title="{{ t('btn.api_hint', 'Has API URL — open Edit to copy it') }}">
+                                                        <i class="bi bi-link-45deg me-1"></i>{{ t('btn.api_url', 'API URL') }}
+                                                    </button>
+                                                </li>
+                                            {% endif %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <button type="button" class="dropdown-item text-danger" @click="confirmDelete(indexOf($event))">
+                                                    <i class="bi bi-trash me-1"></i>{{ t('common.delete', 'Delete') }}
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% if button.direct %}
+                                    <pre class="terminal direct-output mt-2 mb-0 d-none"></pre>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-info-subtle">
+        <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('btn.how', 'How it works') }}</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <p class="mb-2">
+                        <i class="bi bi-plus-circle text-success me-1"></i>
+                        <strong>{{ t('btn.how_create', 'Create a button') }}</strong><br>
+                        {{ t('btn.how_create_text', 'Click Add Command Button, give it a name, and enter the shell command you want to run — for example sudo systemctl restart apache2 or sudo reboot. Choose an icon, colour, and size.') }}
+                    </p>
+                </div>
+                <div class="col-12 col-md-4">
+                    <p class="mb-2">
+                        <i class="bi bi-play-circle text-primary me-1"></i>
+                        <strong>{{ t('btn.how_execute', 'Execute') }}</strong><br>
+                        {{ t('btn.how_execute_text', 'Click any button to open a confirmation dialog showing the exact command that will run. Press Execute to send it to the Raspberry Pi. The output is displayed in the same dialog.') }}
+                    </p>
+                </div>
+                <div class="col-12 col-md-4">
+                    <p class="mb-2">
+                        <i class="bi bi-gear text-body-secondary me-1"></i>
+                        <strong>{{ t('btn.how_edit', 'Edit & delete') }}</strong><br>
+                        {{ t('btn.how_edit_text', 'Use the small dropdown arrow next to each button to edit its settings or delete it. Commands run as the SSH user configured for PiWeb.') }}
+                    </p>
+                </div>
+            </div>
+            <p class="muted-small mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                {{ t("btn.security", "Commands execute with the SSH user's permissions. Only save commands you trust. Prefix with sudo where root access is needed.") }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Add / Edit button modal -->
+    <div class="modal fade" id="buttonModal" tabindex="-1" aria-labelledby="buttonModalLabel" aria-hidden="true"
+         x-ref="buttonModal" x-init="$el.addEventListener('hidden.bs.modal', () => onEditModalHidden())">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="buttonModalLabel">
+                        <span x-show="form.id === null">{{ t('btn.add_title', 'Add Command Button') }}</span>
+                        <span x-show="form.id !== null">{{ t('btn.edit_title', 'Edit Command Button') }}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="buttonTitle">
+                            <i class="bi bi-tag me-1"></i>{{ t('btn.title_label', 'Button Title') }}
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="buttonTitle" maxlength="100" required
+                               placeholder="e.g., Restart Apache" x-model="form.title">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="buttonCommand">
+                            <i class="bi bi-terminal me-1"></i>{{ t('btn.command', 'Command') }}
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control mono" id="buttonCommand" required
+                               placeholder="e.g., sudo systemctl restart apache2" x-model="form.command">
+                        <div class="form-text">{{ t('btn.command_help', 'Shell command executed when the button is clicked') }}</div>
+                        <div class="input-group input-group-sm mt-2" style="max-width: 420px">
+                            <span class="input-group-text"><i class="bi bi-code-slash"></i></span>
+                            <select class="form-select" @change="insertScript($event)">
+                                <option value="">{{ t('scripts.insert', 'Insert a saved script…') }}</option>
+                                {% for script in scripts %}
+                                    <option value="{{ script.name }}" data-run="{{ script.run_line }}">{{ script.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-text">
+                            {{ t('btn.script_help', 'Scripts from the Script Editor — selecting one fills the command with its run line') }}
+                            (<a href="/scripts">{{ t('scripts.title', 'Script editor') }}</a>).
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="buttonIcon">
+                            <i class="bi bi-image me-1"></i>{{ t('btn.icon', 'Icon') }}
+                            <small class="text-body-secondary">({{ t('common.optional', 'optional') }})</small>
+                        </label>
+                        <input type="text" class="form-control" id="buttonIcon" maxlength="50"
+                               placeholder="e.g., arrow-clockwise" x-model="form.icon">
+                        <div class="form-text">
+                            {{ t('btn.icon_help', 'Bootstrap Icons name (for example arrow-clockwise). Legacy FontAwesome names such as fa-refresh are mapped automatically.') }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label" for="buttonStyle">
+                                <i class="bi bi-palette me-1"></i>{{ t('btn.style', 'Style') }}
+                            </label>
+                            <select class="form-select" id="buttonStyle" x-model="form.style">
+                                <option value="btn-default">Default (Gray)</option>
+                                <option value="btn-primary">Primary (Blue)</option>
+                                <option value="btn-success">Success (Green)</option>
+                                <option value="btn-info">Info (Light Blue)</option>
+                                <option value="btn-warning">Warning (Orange)</option>
+                                <option value="btn-danger">Danger (Red)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="buttonSize">
+                                <i class="bi bi-arrows-angle-expand me-1"></i>{{ t('btn.size', 'Size') }}
+                            </label>
+                            <select class="form-select" id="buttonSize" x-model="form.size">
+                                <option value="btn-lg">Large</option>
+                                <option value="btn-md">Medium</option>
+                                <option value="btn-sm">Small</option>
+                                <option value="btn-xs">Extra Small</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="buttonDirect" x-model="form.direct">
+                        <label class="form-check-label" for="buttonDirect">
+                            <strong>{{ t('btn.direct', 'Direct execution') }}</strong> —
+                            {{ t('btn.direct_help', 'run immediately on click, show output inline (no confirmation modal)') }}
+                        </label>
+                    </div>
+
+                    <div x-show="apiEnabled && form.hash">
+                        <hr>
+                        <label class="form-label" for="buttonApiUrl">
+                            <i class="bi bi-link-45deg me-1"></i>{{ t('btn.api_url', 'API URL') }}
+                            <small class="text-body-secondary">({{ t('btn.api_url_help', 'GET to execute this button') }})</small>
+                        </label>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control mono" id="buttonApiUrl" readonly
+                                   x-ref="apiUrl" :value="apiUrl()" @focus="$el.select()">
+                            <button type="button" class="btn btn-outline-secondary" title="{{ t('btn.copy', 'Copy URL') }}" @click="copyApi()">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-warning" @click="regenerate()"
+                                    x-show="form.id !== null">
+                                <i class="bi bi-arrow-clockwise me-1"></i>{{ t('btn.regenerate', 'Regenerate hash') }}
+                            </button>
+                            <span class="muted-small">{{ t('btn.regenerate_help', 'Invalidates the old URL immediately.') }}</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3 mb-0" role="alert">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        {{ t("btn.security", "Commands execute with the SSH user's permissions. Only save commands you trust. Prefix with sudo where root access is needed.") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {{ t('common.cancel', 'Cancel') }}
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="save()" :disabled="saving">
+                        <span class="spinner-border spinner-border-sm me-1" x-show="saving" aria-hidden="true"></span>
+                        <i class="bi bi-save me-1" x-show="!saving"></i>
+                        <span x-show="saving">{{ t('common.saving', 'Saving…') }}</span>
+                        <span x-show="!saving">{{ t('common.save', 'Save') }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Execute confirmation + output modal -->
+    <div class="modal fade" id="execModal" tabindex="-1" aria-labelledby="execModalLabel" aria-hidden="true"
+         x-ref="execModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="execModalLabel">
+                        <i class="bi bi-terminal me-1"></i>{{ t('btn.execute', 'Execute') }}:
+                        <span x-text="exec.title"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-body-secondary small mb-1">{{ t('btn.command', 'Command') }}</p>
+                    <pre class="terminal mb-0" x-text="exec.command"></pre>
+
+                    <div class="mt-3" x-show="exec.done">
+                        <p class="text-body-secondary small mb-1">{{ t('btn.output', 'Output') }}</p>
+                        <pre class="terminal mb-0" :class="exec.ok ? 'text-success' : 'text-danger'" x-text="exec.output"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" x-show="!exec.done">
+                        {{ t('common.cancel', 'Cancel') }}
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="runExecute()"
+                            :disabled="exec.running" x-show="!exec.done">
+                        <span class="spinner-border spinner-border-sm me-1" x-show="exec.running" aria-hidden="true"></span>
+                        <i class="bi bi-play-fill me-1" x-show="!exec.running"></i>
+                        <span x-show="exec.running">{{ t('btn.running', 'Running…') }}</span>
+                        <span x-show="!exec.running">{{ t('btn.run', 'Execute') }}</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" x-show="exec.done">
+                        {{ t('common.close', 'Close') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/sortable.min.js?v={{ asset_version }}"></script>
+<script>
+    window.buttonPage = function () {
+        const initial = {{ buttons|tojson }};
+
+        return {
+            buttons: initial,
+            apiEnabled: {{ button_api|tojson }},
+            apiBase: {{ api_base|tojson }},
+            apiOrigin: window.location.origin,
+            saving: false,
+            needsReload: false,
+            form: {
+                id: null,
+                title: "",
+                command: "",
+                icon: "",
+                style: "btn-default",
+                size: "btn-md",
+                direct: false,
+                hash: ""
+            },
+            exec: {
+                id: null,
+                title: "",
+                command: "",
+                output: "",
+                ok: false,
+                running: false,
+                done: false
+            },
+
+            indexOf(event) {
+                const card = event.currentTarget.closest("[data-idx]");
+                return card ? Number(card.dataset.idx) : -1;
+            },
+            activate(index, event) {
+                const button = this.buttons[index];
+                if (!button) return;
+                if (button.direct) {
+                    this.runDirect(index, event.currentTarget);
+                } else {
+                    this.openExecute(index);
+                }
+            },
+            openAdd() {
+                this.needsReload = false;
+                this.form = {
+                    id: null,
+                    title: "",
+                    command: "",
+                    icon: "",
+                    style: "btn-default",
+                    size: "btn-md",
+                    direct: false,
+                    hash: ""
+                };
+                bootstrap.Modal.getOrCreateInstance(this.$refs.buttonModal).show();
+            },
+            openEdit(index) {
+                const button = this.buttons[index];
+                if (!button) return;
+                this.needsReload = false;
+                this.form = {
+                    id: index,
+                    title: button.title,
+                    command: button.command,
+                    icon: button.icon,
+                    style: button.style,
+                    size: button.size,
+                    direct: !!button.direct,
+                    hash: button.hash || ""
+                };
+                bootstrap.Modal.getOrCreateInstance(this.$refs.buttonModal).show();
+            },
+            onEditModalHidden() {
+                if (this.needsReload) {
+                    this.needsReload = false;
+                    window.location.reload();
+                }
+            },
+            insertScript(event) {
+                const option = event.target.selectedOptions[0];
+                if (!option || !option.value) return;
+                this.form.command = option.dataset.run || "";
+                event.target.value = "";
+            },
+            apiUrl() {
+                return this.form.hash ? this.apiOrigin + this.apiBase + this.form.hash : "";
+            },
+            async copyApi() {
+                const url = this.apiUrl();
+                if (!url) return;
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(url);
+                    } else {
+                        this.$refs.apiUrl.select();
+                        document.execCommand("copy");
+                    }
+                    PiWeb.toast({{ t('btn.copied', 'API URL copied.')|tojson }});
+                } catch (error) {
+                    PiWeb.toast({{ t('btn.copy_failed', 'Could not copy the URL.')|tojson }}, "error");
+                }
+            },
+            async regenerate() {
+                if (this.form.id === null) return;
+                if (!confirm({{ t('btn.confirm_regenerate', 'Regenerate the API hash? The old URL will stop working immediately.')|tojson }})) return;
+                try {
+                    const data = await PiWeb.api("/ajax/buttons/regenerate", {
+                        method: "POST",
+                        body: { id: this.form.id }
+                    });
+                    this.form.hash = data.button_hash || "";
+                    const button = this.buttons[this.form.id];
+                    if (button) button.hash = this.form.hash;
+                    PiWeb.toast(data.message || {{ t('btn.hash_regenerated', 'Hash regenerated.')|tojson }});
+                } catch (error) {
+                    PiWeb.toast(error.message, "error");
+                }
+            },
+            async save() {
+                if (!this.form.title.trim() || !this.form.command.trim()) {
+                    PiWeb.toast({{ t('btn.required', 'Button title and command are required.')|tojson }}, "warning");
+                    return;
+                }
+                const isNew = this.form.id === null;
+                this.saving = true;
+                try {
+                    const data = await PiWeb.api("/ajax/buttons/submit", {
+                        method: "POST",
+                        body: {
+                            button_id: isNew ? "" : String(this.form.id),
+                            title: this.form.title,
+                            command: this.form.command,
+                            icon: this.form.icon,
+                            style: this.form.style,
+                            size: this.form.size,
+                            direct: this.form.direct
+                        }
+                    });
+                    const saved = data.button || {};
+                    if (saved.button_hash) this.form.hash = saved.button_hash;
+                    this.needsReload = true;
+                    PiWeb.toast(data.message || {{ t('btn.saved', 'Button saved.')|tojson }});
+                    if (isNew) {
+                        bootstrap.Modal.getOrCreateInstance(this.$refs.buttonModal).hide();
+                    }
+                } catch (error) {
+                    PiWeb.toast(error.message, "error");
+                } finally {
+                    this.saving = false;
+                }
+            },
+            async confirmDelete(index) {
+                const button = this.buttons[index];
+                if (!button) return;
+                if (!confirm({{ t('btn.confirm_delete', 'Delete this button?')|tojson }})) return;
+                try {
+                    await PiWeb.api("/ajax/buttons/delete", {
+                        method: "POST",
+                        body: { id: index }
+                    });
+                    PiWeb.toast({{ t('btn.deleted', 'Button deleted.')|tojson }});
+                    window.location.reload();
+                } catch (error) {
+                    PiWeb.toast(error.message, "error");
+                }
+            },
+            openExecute(index) {
+                const button = this.buttons[index];
+                if (!button) return;
+                this.exec = {
+                    id: index,
+                    title: button.title,
+                    command: button.command,
+                    output: "",
+                    ok: false,
+                    running: false,
+                    done: false
+                };
+                bootstrap.Modal.getOrCreateInstance(this.$refs.execModal).show();
+            },
+            async runExecute() {
+                if (this.exec.running || this.exec.id === null) return;
+                this.exec.running = true;
+                this.exec.done = false;
+                try {
+                    const data = await PiWeb.api("/ajax/buttons/execute", {
+                        method: "POST",
+                        body: { id: this.exec.id }
+                    });
+                    const ok = data.ok === true;
+                    const output = String(data.output || data.error || "").trim();
+                    this.exec.ok = ok;
+                    this.exec.output = output || (ok ? "(no output)" : "Command failed");
+                } catch (error) {
+                    this.exec.ok = false;
+                    this.exec.output = error.message || "Request failed.";
+                } finally {
+                    this.exec.running = false;
+                    this.exec.done = true;
+                }
+            },
+            async runDirect(index, buttonEl) {
+                const button = this.buttons[index];
+                if (!button) return;
+                const card = buttonEl.closest(".btn-draggable");
+                const pre = card ? card.querySelector(".direct-output") : null;
+                const original = buttonEl.innerHTML;
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                try {
+                    const data = await PiWeb.api("/ajax/buttons/execute", {
+                        method: "POST",
+                        body: { id: index }
+                    });
+                    const ok = data.ok === true;
+                    const output = String(data.output || data.error || "").trim();
+                    if (pre) {
+                        pre.textContent = output || (ok ? "(no output)" : "Command failed");
+                        pre.classList.remove("d-none", "text-success", "text-danger");
+                        pre.classList.add(ok ? "text-success" : "text-danger");
+                    }
+                } catch (error) {
+                    if (pre) {
+                        pre.textContent = error.message || "Request failed.";
+                        pre.classList.remove("d-none", "text-success");
+                        pre.classList.add("text-danger");
+                    }
+                } finally {
+                    buttonEl.disabled = false;
+                    buttonEl.innerHTML = original;
+                }
+            },
+            applyOrder(order) {
+                const current = this.buttons.slice();
+                this.buttons = order.map(function (index) {
+                    return current[index];
+                }).filter(Boolean);
+            }
+        };
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const container = document.getElementById("buttons-sortable");
+        if (!container || typeof Sortable === "undefined") return;
+
+        new Sortable(container, {
+            animation: 150,
+            handle: ".drag-handle",
+            ghostClass: "sortable-ghost",
+            onEnd: async function () {
+                const cards = Array.from(container.querySelectorAll(".btn-draggable"));
+                const order = cards.map(function (card) { return card.dataset.idx; });
+                try {
+                    await PiWeb.api("/ajax/buttons/reorder", {
+                        method: "POST",
+                        body: { order: order }
+                    });
+                    cards.forEach(function (card, index) {
+                        card.dataset.idx = String(index);
+                    });
+                    window.dispatchEvent(new CustomEvent("buttons-reordered", { detail: order.map(Number) }));
+                    PiWeb.toast({{ t('btn.reordered', 'Buttons reordered.')|tojson }});
+                } catch (error) {
+                    PiWeb.toast(error.message, "error");
+                    window.location.reload();
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

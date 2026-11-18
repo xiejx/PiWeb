@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ t('backup.title', 'Backup & Restore') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ t('backup.title', 'Backup & Restore') }}</h1>
+
+<div class="alert alert-danger d-flex gap-2" role="alert">
+    <i class="bi bi-shield-exclamation fs-4"></i>
+    <div>
+        <strong>{{ t('backup.warning_title', 'This backup contains secrets.') }}</strong>
+        {{ t('backup.warning_body', 'It includes your login and SSH credentials and the button API keys. Store the file like a password and never commit it to git.') }}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-download me-1"></i>{{ t('backup.download', 'Download a backup') }}</div>
+            <div class="card-body d-flex flex-column">
+                <p>{{ t('backup.download_intro', 'One JSON file containing the configuration, custom buttons, the menu order, dashboard pins and every file in') }}
+                    <code>user_scripts/</code>.</p>
+                <ul class="small text-body-secondary">
+                    <li><code>{{ settings.config_path or 'config.toml' }}</code></li>
+                    <li><code>data/menu_order.json</code></li>
+                    <li><code>buttons/buttons.json</code></li>
+                    <li><code>user_scripts/</code> (scripts and <code>.pins.json</code>)</li>
+                </ul>
+                <form method="post" action="/backup/download" class="mt-auto">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-download me-1"></i>{{ t('backup.download_btn', 'Download backup') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 border-warning-subtle">
+            <div class="card-header"><i class="bi bi-upload me-1"></i>{{ t('backup.restore', 'Restore from a backup') }}</div>
+            <div class="card-body">
+                <p>{{ t('backup.restore_intro', 'Files in the backup overwrite the current ones. Scripts and buttons that are not in the backup are left alone.') }}</p>
+                <form method="post" action="/backup/restore" enctype="multipart/form-data"
+                      data-confirm="{{ t('backup.confirm', 'Restore from this backup? Existing files with the same names are overwritten.') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="bundle">{{ t('backup.file', 'Backup file') }}</label>
+                        <input class="form-control" id="bundle" type="file" name="bundle"
+                               accept=".json,application/json" required>
+                        <div class="muted-small mt-1">{{ t('backup.max_size', 'Maximum size: 8 MB.') }}</div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="restoreConfig"
+                               name="restore_config" value="1">
+                        <label class="form-check-label" for="restoreConfig">
+                            {{ t('backup.restore_config', 'Also restore config.toml') }}
+                            <span class="text-body-secondary">— {{ t('backup.restore_config_hint', 'replaces the current login and SSH credentials; the old file is kept as config.toml.restore.bak') }}</span>
+                        </label>
+                    </div>
+                    <button class="btn btn-warning" type="submit">
+                        <i class="bi bi-upload me-1"></i>{{ t('backup.restore_btn', 'Restore') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

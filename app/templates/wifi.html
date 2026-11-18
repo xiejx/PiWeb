@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.wifi', 'Wi-Fi') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-wifi me-1"></i>{{ t('wifi.title', 'Wi-Fi') }}</h1>
+        <div class="muted-small">{{ t('wifi.subtitle', 'Radio state, nearby networks and saved connections.') }}</div>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="refreshWifiStatus()">
+        <i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}
+    </button>
+</div>
+
+<div class="alert alert-warning {% if state.available %}d-none{% endif %}" id="wifiUnavailable">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    <span id="wifiUnavailableText">{{ state.reason or t('wifi.unavailable', 'Wi-Fi management needs NetworkManager (nmcli) or wpa_supplicant (wpa_cli).') }}</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-broadcast me-1"></i>{{ t('wifi.status', 'Status') }}</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-body-secondary">{{ t('wifi.radio', 'Radio') }}</dt>
+                    <dd class="col-7">
+                        <span class="badge badge-soft-muted" id="wifiStateBadge">{{ 'on' if state.enabled else 'off' }}</span>
+                    </dd>
+                    <dt class="col-5 text-body-secondary">{{ t('wifi.backend', 'Backend') }}</dt>
+                    <dd class="col-7 mono" id="wifiBackend">{{ state.backend or '—' }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('wifi.interface', 'Interface') }}</dt>
+                    <dd class="col-7 mono" id="wifiIface">{{ state.iface or '—' }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('wifi.ssid', 'Connected to') }}</dt>
+                    <dd class="col-7 mono" id="wifiSsid">{{ state.ssid or '—' }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('wifi.signal', 'Signal') }}</dt>
+                    <dd class="col-7" id="wifiSignal">{{ (state.signal ~ ' %') if state.signal is not none else '—' }}</dd>
+                </dl>
+                <hr>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-success" type="button" id="wifiRadioOn" onclick="setWifiRadio(1)">
+                        <i class="bi bi-toggle-on me-1"></i>{{ t('common.enable', 'Enable') }}
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="wifiRadioOff" onclick="setWifiRadio(0)">
+                        <i class="bi bi-toggle-off me-1"></i>{{ t('common.disable', 'Disable') }}
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" type="button" id="wifiDisconnectBtn" onclick="disconnectWifi()">
+                        <i class="bi bi-x-circle me-1"></i>{{ t('wifi.disconnect', 'Disconnect') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul me-1"></i>{{ t('wifi.saved', 'Saved networks') }}</span>
+                <span class="muted-small" id="wifiSavedCount">{{ state.saved|length }}</span>
+            </div>
+            <div class="card-body">
+                <div id="wifiSavedList" class="d-flex flex-wrap gap-2">
+                    {% for name in state.saved %}
+                        <button class="btn btn-sm btn-outline-primary mono" type="button"
+                                data-ssid="{{ name }}" onclick="connectWifi(this.dataset.ssid, true)">
+                            {{ name }}
+                        </button>
+                    {% else %}
+                        <span class="muted-small" id="wifiSavedEmpty">{{ t('wifi.no_saved', 'No saved networks yet.') }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-search me-1"></i>{{ t('wifi.networks', 'Nearby networks') }}</span>
+        <button class="btn btn-sm btn-primary" type="button" id="wifiScanBtn" onclick="scanWifi()">
+            <i class="bi bi-radar me-1"></i>{{ t('wifi.scan', 'Scan') }}
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>{{ t('wifi.ssid', 'Network') }}</th>
+                <th>{{ t('wifi.signal', 'Signal') }}</th>
+                <th>{{ t('wifi.security', 'Security') }}</th>
+                <th>{{ t('wifi.saved_flag', 'Saved') }}</th>
+                <th class="text-end"></th>
+            </tr>
+            </thead>
+            <tbody id="wifiNetworksBody">
+            <tr><td colspan="5" class="text-body-secondary" id="wifiScanHint">{{ t('wifi.scan_hint', 'Press Scan to look for nearby networks.') }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    function signalBadge(strength) {
+        const value = Number(strength) || 0;
+        const cls = value >= 70 ? 'text-bg-success' : value >= 40 ? 'text-bg-warning' : 'text-bg-secondary';
+        const span = document.createElement('span');
+        span.className = 'badge ' + cls;
+        span.textContent = value + ' %';
+        return span;
+    }
+
+    function applyWifiState(state) {
+        if (!state) return;
+        const badge = document.getElementById('wifiStateBadge');
+        if (badge) {
+            badge.textContent = state.enabled ? 'on' : 'off';
+            badge.className = 'badge ' + (state.enabled ? 'badge-soft-success' : 'badge-soft-muted');
+        }
+        setText('wifiBackend', state.backend || '—');
+        setText('wifiIface', state.iface || '—');
+        setText('wifiSsid', state.ssid || '—');
+        setText('wifiSignal', state.signal === null || state.signal === undefined ? '—' : state.signal + ' %');
+
+        const unavailable = document.getElementById('wifiUnavailable');
+        if (unavailable) {
+            unavailable.classList.toggle('d-none', !!state.available);
+            if (!state.available) setText('wifiUnavailableText', state.reason || 'Wi-Fi tooling is not available.');
+        }
+
+        const list = document.getElementById('wifiSavedList');
+        const saved = state.saved || [];
+        setText('wifiSavedCount', String(saved.length));
+        if (list) {
+            list.textContent = '';
+            if (!saved.length) {
+                const empty = document.createElement('span');
+                empty.className = 'muted-small';
+                empty.textContent = 'No saved networks yet.';
+                list.appendChild(empty);
+            }
+            saved.forEach(function (name) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-sm btn-outline-primary mono';
+                button.textContent = name;
+                button.addEventListener('click', function () { connectWifi(name, true); });
+                list.appendChild(button);
+            });
+        }
+        window.wifiSaved = saved;
+    }
+
+    async function refreshWifiStatus() {
+        try {
+            const data = await PiWeb.api('/ajax/wifi/status');
+            applyWifiState(data.state);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function setWifiRadio(enable) {
+        try {
+            const data = await PiWeb.api('/ajax/wifi/radio', { method: 'POST', body: { enable: enable } });
+            PiWeb.toast(data.message || 'Done.');
+            applyWifiState(data.state);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function disconnectWifi() {
+        if (!confirm('Disconnect the current Wi-Fi network?')) return;
+        try {
+            const data = await PiWeb.api('/ajax/wifi/disconnect', { method: 'POST' });
+            PiWeb.toast(data.message || 'Disconnected.');
+            applyWifiState(data.state);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function connectWifi(ssid, saved) {
+        let password = '';
+        if (!saved) {
+            const open = /open/i.test(String(window.wifiSecurity || ''));
+            if (!open) {
+                const entered = window.prompt('Password for "' + ssid + '" (leave empty for a saved profile):', '');
+                if (entered === null) return;
+                password = entered;
+            }
+        }
+        try {
+            const data = await PiWeb.api('/ajax/wifi/connect', {
+                method: 'POST',
+                body: { ssid: ssid, password: password }
+            });
+            PiWeb.toast(data.message || 'Connected.');
+            applyWifiState(data.state);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    function renderNetworks(networks) {
+        const body = document.getElementById('wifiNetworksBody');
+        if (!body) return;
+        body.textContent = '';
+        if (!networks || !networks.length) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            cell.className = 'text-body-secondary';
+            cell.textContent = 'No networks were found.';
+            row.appendChild(cell);
+            body.appendChild(row);
+            return;
+        }
+        const saved = window.wifiSaved || [];
+        networks.forEach(function (network) {
+            const row = document.createElement('tr');
+
+            const nameCell = document.createElement('td');
+            nameCell.className = 'mono';
+            nameCell.textContent = network.ssid;
+            row.appendChild(nameCell);
+
+            const signalCell = document.createElement('td');
+            signalCell.appendChild(signalBadge(network.signal));
+            row.appendChild(signalCell);
+
+            const securityCell = document.createElement('td');
+            securityCell.textContent = network.security || 'Open';
+            row.appendChild(securityCell);
+
+            const savedCell = document.createElement('td');
+            if (network.active) {
+                const active = document.createElement('span');
+                active.className = 'badge text-bg-success';
+                active.textContent = 'connected';
+                savedCell.appendChild(active);
+            } else if (saved.indexOf(network.ssid) !== -1) {
+                const tag = document.createElement('span');
+                tag.className = 'badge text-bg-light';
+                tag.textContent = 'saved';
+                savedCell.appendChild(tag);
+            } else {
+                savedCell.textContent = '—';
+            }
+            row.appendChild(savedCell);
+
+            const actionCell = document.createElement('td');
+            actionCell.className = 'text-end';
+            if (!network.active) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.textContent = 'Connect';
+                button.addEventListener('click', function () {
+                    window.wifiSecurity = network.security;
+                    connectWifi(network.ssid, saved.indexOf(network.ssid) !== -1);
+                });
+                actionCell.appendChild(button);
+            }
+            row.appendChild(actionCell);
+
+            body.appendChild(row);
+        });
+    }
+
+    async function scanWifi() {
+        const button = document.getElementById('wifiScanBtn');
+        if (!button) return;
+        const previous = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = 'Scanning…';
+        try {
+            const data = await PiWeb.api('/ajax/wifi/scan', { method: 'POST' });
+            renderNetworks(data.networks || []);
+            PiWeb.toast('Scan finished — ' + (data.networks || []).length + ' networks.');
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = previous;
+        }
+    }
+
+    applyWifiState({{ state|tojson }});
+</script>
+{% endblock %}

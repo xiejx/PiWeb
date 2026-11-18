@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}{{ t('pkg.title', 'Package Updates') }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi bi-box-seam me-1"></i>{{ t('pkg.title', 'Package Updates') }}
+            <small class="text-body-secondary fs-6" id="pkgCount">
+                {{ count }} {{ t('pkg.updates_available', 'updates available') }}
+            </small>
+        </h1>
+        <div class="muted-small">{{ t('pkg.subtitle', 'APT index status and pending package upgrades.') }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" id="pkgCheckBtn" type="button">
+            <i class="bi bi-arrow-clockwise me-1"></i>{{ t('pkg.check', 'Check for updates') }}
+        </button>
+        <button class="btn btn-warning btn-sm" id="pkgUpgradeBtn" type="button">
+            <i class="bi bi-arrow-up-circle me-1"></i>{{ t('pkg.upgrade', 'Upgrade all') }}
+        </button>
+    </div>
+</div>
+
+{% if index_mtime %}
+    <div class="alert {{ 'alert-warning' if index_stale else 'alert-info' }} d-flex gap-2 align-items-start" id="pkgNote" role="alert">
+        <i class="bi bi-info-circle-fill"></i>
+        <div id="pkgNoteText">
+            {{ t('pkg.index_last_refreshed', 'Package index last refreshed') }}
+            <strong>{{ index_age }}</strong>.
+            {% if count == 0 %}
+                {% if index_stale %}
+                    {{ t('pkg.index_stale_hint', "That's a while ago — click Check for updates to be sure the list is current.") }}
+                {% else %}
+                    {{ t('pkg.uptodate', 'Everything is up to date.') }}
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-warning d-flex gap-2 align-items-start" id="pkgNote" role="alert">
+        <i class="bi bi-info-circle-fill"></i>
+        <div id="pkgNoteText">{{ t('pkg.index_unknown', 'The apt index age is unknown. Click Check for updates to refresh it.') }}</div>
+    </div>
+{% endif %}
+
+<div class="alert alert-danger d-none" id="pkgError" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="pkgErrorText"></span>
+</div>
+
+<div class="mb-3 d-none" id="pkgOutputWrap">
+    <pre class="terminal mb-0" id="pkgOutput" style="max-height: 300px; overflow: auto"></pre>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-1"></i>{{ t('pkg.upgradable', 'Upgradable Packages') }}</span>
+        <span class="badge text-bg-secondary" id="pkgBadge">{{ count }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th class="ps-3">{{ t('pkg.package', 'Package') }}</th>
+                    <th>{{ t('pkg.installed', 'Installed') }}</th>
+                    <th>{{ t('pkg.available', 'Available') }}</th>
+                </tr>
+            </thead>
+            <tbody id="pkgTbody">
+                {% if packages %}
+                    {% for package in packages %}
+                        <tr>
+                            <td class="ps-3"><strong>{{ package.name }}</strong></td>
+                            <td class="text-body-secondary">{{ package.current }}</td>
+                            <td class="text-success">{{ package.new }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="text-success ps-3">
+                            <i class="bi bi-check-circle-fill me-1"></i>{{ t('pkg.uptodate', 'Everything is up to date.') }}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const api = window.PiWeb;
+    const countLabel = document.getElementById('pkgCount');
+    const badge = document.getElementById('pkgBadge');
+    const tbody = document.getElementById('pkgTbody');
+    const note = document.getElementById('pkgNote');
+    const noteText = document.getElementById('pkgNoteText');
+    const errorBox = document.getElementById('pkgError');
+    const errorText = document.getElementById('pkgErrorText');
+    const outputWrap = document.getElementById('pkgOutputWrap');
+    const output = document.getElementById('pkgOutput');
+    const checkBtn = document.getElementById('pkgCheckBtn');
+    const upgradeBtn = document.getElementById('pkgUpgradeBtn');
+
+    const tUpdates = {{ t('pkg.updates_available', 'updates available')|tojson }};
+    const tUpToDate = {{ t('pkg.uptodate', 'Everything is up to date.')|tojson }};
+    const tLoadFailed = {{ t('pkg.load_failed', 'Failed to load package list.')|tojson }};
+    const tNoOutput = {{ t('pkg.no_output', '(no output)')|tojson }};
+    const tCheckFailed = {{ t('pkg.check_failed', 'Request failed — check execution settings.')|tojson }};
+    const tCheckLabel = {{ t('pkg.check', 'Check for updates')|tojson }};
+    const tUpgradeLabel = {{ t('pkg.upgrade', 'Upgrade all')|tojson }};
+    const tChecking = {{ t('pkg.checking', 'Checking…')|tojson }};
+    const tUpgrading = {{ t('pkg.upgrading', 'Upgrading…')|tojson }};
+    const tConfirmUpgrade = {{ t('pkg.confirm_upgrade', 'Upgrade all packages now? This runs apt-get upgrade and may take a while.')|tojson }};
+
+    function ago(seconds) {
+        if (seconds < 90) return 'just now';
+        const minutes = Math.round(seconds / 60);
+        if (minutes < 90) return minutes + ' minute' + (minutes !== 1 ? 's' : '') + ' ago';
+        const hours = Math.round(minutes / 60);
+        if (hours < 36) return hours + ' hour' + (hours !== 1 ? 's' : '') + ' ago';
+        const days = Math.round(hours / 24);
+        return days + ' day' + (days !== 1 ? 's' : '') + ' ago';
+    }
+
+    function showIndexAge(mtime, count) {
+        if (!note) return;
+        if (!mtime) {
+            note.classList.remove('d-none', 'alert-info');
+            note.classList.add('alert-warning');
+            noteText.innerHTML = 'The apt index age is unknown. Click <strong>Check for updates</strong> to refresh it.';
+            return;
+        }
+        const age = Math.max(0, Math.floor(Date.now() / 1000) - mtime);
+        const stale = age > 86400;
+        note.classList.remove('d-none', 'alert-info', 'alert-warning');
+        note.classList.add(stale ? 'alert-warning' : 'alert-info');
+        let message = 'Package index last refreshed <strong>' + ago(age) + '</strong>.';
+        if (count === 0) {
+            message += stale
+                ? " That's a while ago — click <strong>Check for updates</strong> to be sure the list is current."
+                : ' Your system is up to date.';
+        }
+        noteText.innerHTML = message;
+    }
+
+    function cell(text, className, strong) {
+        const td = document.createElement('td');
+        if (className) td.className = className;
+        if (strong) {
+            const el = document.createElement('strong');
+            el.textContent = text;
+            td.appendChild(el);
+        } else {
+            td.textContent = text;
+        }
+        return td;
+    }
+
+    function render(packages) {
+        tbody.innerHTML = '';
+        countLabel.textContent = packages.length + ' ' + tUpdates;
+        if (badge) badge.textContent = packages.length;
+        if (!packages.length) {
+            const row = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.className = 'text-success ps-3';
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-check-circle-fill me-1';
+            td.appendChild(icon);
+            td.appendChild(document.createTextNode(tUpToDate));
+            row.appendChild(td);
+            tbody.appendChild(row);
+            return;
+        }
+        packages.forEach(function (pkg) {
+            const row = document.createElement('tr');
+            row.appendChild(cell(pkg.name, 'ps-3', true));
+            row.appendChild(cell(pkg.current, 'text-body-secondary', false));
+            row.appendChild(cell(pkg.new, 'text-success', false));
+            tbody.appendChild(row);
+        });
+    }
+
+    async function loadList() {
+        try {
+            const data = await api.api('/ajax/packages/list');
+            const packages = (data && data.packages) || [];
+            render(packages);
+            if (data && data.index_mtime !== undefined) {
+                showIndexAge(data.index_mtime || 0, packages.length);
+            }
+        } catch (err) {
+            countLabel.textContent = 'error';
+            if (badge) badge.textContent = '!';
+            tbody.innerHTML = '';
+            const row = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.className = 'text-danger ps-3';
+            td.textContent = tLoadFailed;
+            row.appendChild(td);
+            tbody.appendChild(row);
+        }
+    }
+
+    function showOutput(text) {
+        output.textContent = text || tNoOutput;
+        outputWrap.classList.remove('d-none');
+    }
+
+    function showError(message) {
+        if (message) {
+            errorText.textContent = message;
+            errorBox.classList.remove('d-none');
+        } else {
+            errorBox.classList.add('d-none');
+            errorText.textContent = '';
+        }
+    }
+
+    function setBusy(button, busy, icon, label) {
+        button.disabled = busy;
+        button.innerHTML = '';
+        if (busy) {
+            const spinner = document.createElement('span');
+            spinner.className = 'spinner-border spinner-border-sm me-1';
+            button.appendChild(spinner);
+        } else {
+            const el = document.createElement('i');
+            el.className = 'bi ' + icon + ' me-1';
+            button.appendChild(el);
+        }
+        button.appendChild(document.createTextNode(label));
+    }
+
+    checkBtn.addEventListener('click', async function () {
+        showError('');
+        setBusy(checkBtn, true, 'bi-arrow-clockwise', tChecking);
+        try {
+            const data = await api.api('/ajax/packages/check', { method: 'POST' });
+            showError(data && data.ok ? '' : ((data && (data.message || data.error)) || 'apt update failed'));
+            showOutput((data && (data.output || data.message)) || '');
+            await loadList();
+        } catch (err) {
+            showError(tCheckFailed);
+        } finally {
+            setBusy(checkBtn, false, 'bi-arrow-clockwise', tCheckLabel);
+        }
+    });
+
+    upgradeBtn.addEventListener('click', async function () {
+        if (!window.confirm(tConfirmUpgrade)) return;
+        showError('');
+        showOutput('Running apt-get upgrade… this can take several minutes.');
+        setBusy(upgradeBtn, true, 'bi-arrow-up-circle', tUpgrading);
+        try {
+            const data = await api.api('/ajax/packages/upgrade', { method: 'POST' });
+            showOutput((data && (data.output || data.message)) || '');
+            if (data && !data.ok) {
+                showError((data && (data.message || data.error)) || 'apt-get upgrade failed');
+            }
+            await loadList();
+        } catch (err) {
+            showOutput('Request failed or timed out — the upgrade may still be running.');
+        } finally {
+            setBusy(upgradeBtn, false, 'bi-arrow-up-circle', tUpgradeLabel);
+        }
+    });
+})();
+</script>
+{% endblock %}

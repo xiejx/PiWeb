@@ -1,0 +1,189 @@
+<div class="row g-3">
+    {% if d.throttled.available and d.throttled.flags %}
+        <div class="col-12">
+            <div class="alert alert-danger d-flex gap-2 mb-0" role="alert">
+                <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+                <div>
+                    <strong>Power / thermal warning:</strong>
+                    <ul class="mb-0 ps-3">
+                        {% for flag in d.throttled.flags %}<li>{{ flag }}</li>{% endfor %}
+                    </ul>
+                    <div class="small">Check the power supply and cooling. ({{ d.throttled.raw }})</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">{{ t('dash.temp', 'CPU temperature') }}</div>
+                        <div class="stat-value" id="liveTemp">{{ '%.1f'|format(d.temp) }} °C</div>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-thermometer-half"></i></span>
+                </div>
+                <div class="progress mt-3" role="progressbar" aria-valuenow="{{ d.temp }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar bg-{{ d.temp|temp_color }}" id="liveTempBar" style="width: {{ [d.temp, 100]|min }}%"></div>
+                </div>
+                <div class="muted-small mt-2" id="liveTempNote">{{ 'Cool' if d.temp < 60 else ('Warm' if d.temp < 75 else 'Hot') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">{{ t('dash.load', 'CPU load') }}</div>
+                        <div class="stat-value" id="liveLoad">{{ d.load[0] }}</div>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-cpu"></i></span>
+                </div>
+                <div class="progress mt-3" role="progressbar">
+                    <div class="progress-bar bg-{{ (d.load[0] / d.info.cores|int * 100)|round|int|bar_color }}"
+                         id="liveLoadBar"
+                         style="width: {{ [d.load[0] / d.info.cores|int * 100, 100]|min }}%"></div>
+                </div>
+                <div class="muted-small mt-2" id="liveLoadNote">
+                    {{ d.load[1] }} · {{ d.load[2] }} (5 / 15 min) · {{ d.info.cores }} cores
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">{{ t('dash.memory', 'Memory') }}</div>
+                        <div class="stat-value" id="liveMem">{{ d.memory.used_h }}</div>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-memory"></i></span>
+                </div>
+                <div class="progress mt-3" role="progressbar">
+                    <div class="progress-bar bg-{{ d.memory.percent|bar_color }}" id="liveMemBar" style="width: {{ d.memory.percent }}%"></div>
+                </div>
+                <div class="muted-small mt-2" id="liveMemNote">{{ d.memory.percent }}% of {{ d.memory.total_h }} used</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">{{ t('dash.disk', 'Disk (/)') }}</div>
+                        <div class="stat-value" id="liveDisk">{{ d.disk.used_h }}</div>
+                    </div>
+                    <span class="stat-icon"><i class="bi bi-hdd"></i></span>
+                </div>
+                <div class="progress mt-3" role="progressbar">
+                    <div class="progress-bar bg-{{ d.disk.percent|bar_color }}" id="liveDiskBar" style="width: {{ d.disk.percent }}%"></div>
+                </div>
+                <div class="muted-small mt-2" id="liveDiskNote">{{ d.disk.percent }}% of {{ d.disk.total_h }} used</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-hdd-stack me-1"></i>{{ t('dash.services', 'Services') }}</span>
+                <a class="btn btn-sm btn-outline-secondary" href="/services">{{ t('common.manage', 'Manage') }}</a>
+            </div>
+            <div class="card-body">
+                {% if d.services %}
+                    <ul class="list-unstyled mb-0">
+                        {% for service in d.services %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom border-light-subtle">
+                                <span class="mono">{{ service.name }}</span>
+                                <span class="badge {{ service.state|service_class }}">{{ service.state }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-body-secondary mb-0">{{ t('dash.no_services', 'No services configured for the dashboard.') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-memory me-1"></i>{{ t('dash.memory_detail', 'Memory details') }}</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="stat-label">{{ t('dash.total', 'Total') }}</div>
+                        <div class="fw-semibold">{{ d.memory.total_h }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-label">{{ t('dash.used', 'Used') }}</div>
+                        <div class="fw-semibold">{{ d.memory.used_h }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-label">{{ t('dash.available', 'Available') }}</div>
+                        <div class="fw-semibold">{{ d.memory.available_h }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-label">{{ t('dash.cached', 'Cached / buffers') }}</div>
+                        <div class="fw-semibold">{{ d.memory.cached_h }} / {{ d.memory.buffers_h }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>{{ t('dash.swap', 'Swap') }} {{ d.swap.used_h }} / {{ d.swap.total_h }}</span>
+                            <span>{{ d.swap.percent }}%</span>
+                        </div>
+                        <div class="progress" role="progressbar">
+                            <div class="progress-bar bg-{{ d.swap.percent|bar_color }}" style="width: {{ d.swap.percent }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-wifi me-1"></i>{{ t('dash.network', 'Network') }}</span>
+                <span class="muted-small">{{ t('dash.net_live', 'Live') }} · <span id="liveNow">{{ d.now }}</span></span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead>
+                    <tr>
+                        <th>{{ t('net.interface', 'Interface') }}</th>
+                        <th>IPv4</th>
+                        <th>{{ t('common.state', 'State') }}</th>
+                        <th>{{ t('net.signal', 'Signal') }}</th>
+                        <th class="text-end">{{ t('dash.rate', 'Rate ↓ / ↑') }}</th>
+                        <th class="text-end">{{ t('net.received', 'Received') }}</th>
+                        <th class="text-end">{{ t('net.sent', 'Sent') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for net in d.network %}
+                        <tr>
+                            <td class="mono">{{ net.name }}</td>
+                            <td class="mono">{{ net.ipv4 }}</td>
+                            <td><span class="badge {{ 'badge-soft-success' if net.state == 'up' else 'badge-soft-muted' }}">{{ net.state }}</span></td>
+                            <td>{{ net.signal or '—' }}</td>
+                            <td class="text-end mono" id="netRate-{{ net.name }}">{{ net.rx_rate_h }} / {{ net.tx_rate_h }}</td>
+                            <td class="text-end">{{ net.rx_h }}</td>
+                            <td class="text-end">{{ net.tx_h }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-body-secondary">{{ t('net.none', 'No network interfaces detected.') }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,44 @@
+{% macro service_card(title, icon, tone, services, action, button_tone, button_icon, button_label) %}
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi {{ icon }} me-1 text-{{ tone }}"></i>{{ title }}</span>
+            <span class="badge text-bg-{{ tone }}">{{ services|length }}</span>
+        </div>
+        <div class="card-body p-0">
+            {% if services %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <tbody>
+                        {% for service in services %}
+                            <tr>
+                                <td class="mono">{{ service }}</td>
+                                <td class="text-end" style="width: 150px">
+                                    {% if action %}
+                                        <form method="post" action="/services/action" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <input type="hidden" name="sname" value="{{ service }}">
+                                            <input type="hidden" name="action" value="{{ action }}">
+                                            <button class="btn btn-sm btn-outline-{{ button_tone }}" type="submit"
+                                                    data-confirm="{{ button_label }} {{ service }}?">
+                                                {{ button_label }}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-body-secondary p-3 mb-0">{{ t('svc.none', 'None.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{{ service_card(t('svc.active', 'Active services'), 'bi-check-circle-fill', 'success', lists.active, 'stop', 'danger', 'bi-stop-fill', t('svc.stop', 'Stop')) }}
+{{ service_card(t('svc.inactive', 'Inactive services'), 'bi-dash-circle', 'secondary', lists.inactive, 'start', 'success', 'bi-play-fill', t('svc.start', 'Start')) }}
+{% if lists.unknown %}
+    {{ service_card(t('svc.unknown', 'Unknown status'), 'bi-question-circle', 'warning', lists.unknown, '', '', '', '') }}
+{% endif %}

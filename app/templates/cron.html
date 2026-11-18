@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.cron', 'Cron') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ t('cron.title', 'Cron jobs') }}</h1>
+
+<div class="card mb-3" x-data="cronPage()">
+    <div class="card-header"><i class="bi bi-plus-circle me-1"></i>{{ t('cron.add', 'Add cron job') }}</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="cronPreset">{{ t('cron.when', 'When') }}</label>
+                <select class="form-select" id="cronPreset" x-model="preset" @change="applyPreset()">
+                    <option value="">{{ t('cron.custom', 'Custom…') }}</option>
+                    <option value="* * * * *">Every minute</option>
+                    <option value="*/5 * * * *">Every 5 minutes</option>
+                    <option value="*/15 * * * *">Every 15 minutes</option>
+                    <option value="*/30 * * * *">Every 30 minutes</option>
+                    <option value="0 * * * *">Every hour</option>
+                    <option value="@daily">Every day (midnight)</option>
+                    <option value="0 4 * * *">Every day at 04:00</option>
+                    <option value="0 0 * * 0">Every week (Sunday)</option>
+                    <option value="0 0 1 * *">Every month (1st)</option>
+                    <option value="@reboot">At boot</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="cronSchedule">{{ t('cron.expr', 'Schedule expression') }}</label>
+                <input class="form-control mono" id="cronSchedule" x-model="schedule" @input="updateHint()"
+                       placeholder="0 4 * * *" :class="valid === false ? 'is-invalid' : (schedule ? 'is-valid' : '')">
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label" for="cronCommand">{{ t('cron.command', 'Command to run') }}</label>
+                <input class="form-control mono" id="cronCommand" x-model="command" placeholder="/usr/bin/backup.sh">
+                <select class="form-select form-select-sm mt-2" @change="insertScript($event)">
+                    <option value="">{{ t('scripts.insert', 'Insert a saved script…') }}</option>
+                    {% for script in scripts %}<option value="{{ script }}">{{ script }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-3 mt-3">
+            <button class="btn btn-success" type="button" :disabled="valid === false || !schedule || !command" @click="add()">
+                <i class="bi bi-plus-lg me-1"></i>{{ t('cron.add', 'Add cron job') }}
+            </button>
+            <span class="small" :class="valid === false ? 'text-danger' : 'text-info'" x-text="hint"></span>
+        </div>
+        <div class="muted-small mt-2">
+            <code>minute hour day month weekday</code> ·
+            <a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><i class="bi bi-person me-1"></i>{{ t('cron.user_crontab', 'User crontab') }}</div>
+    <div id="cronTable">{% include "partials/cron_table.html" %}</div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-gear me-1"></i>/etc/crontab <span class="muted-small">({{ t('common.read_only', 'read-only') }})</span></div>
+    <div class="card-body">
+        <pre class="terminal mb-0">{{ system_crontab or t('cron.empty_system', '(empty or not readable)') }}</pre>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.cronPage = function () {
+        return {
+            preset: "",
+            schedule: "",
+            command: "",
+            valid: null,
+            hint: "",
+            applyPreset() {
+                if (this.preset) this.schedule = this.preset;
+                this.updateHint();
+            },
+            insertScript(event) {
+                const name = event.target.value;
+                if (!name) return;
+                this.command = 'bash {{ settings.scripts_dir }}/' + name;
+                event.target.value = "";
+            },
+            tokenValue(token, min, max, names) {
+                token = token.toLowerCase();
+                let value = null;
+                if (names && Object.prototype.hasOwnProperty.call(names, token)) value = names[token];
+                else if (/^\d+$/.test(token)) value = parseInt(token, 10);
+                if (value === null || value < min || value > max) return null;
+                return value;
+            },
+            fieldValid(field, min, max, names) {
+                if (!field) return false;
+                const items = field.split(",");
+                for (let item of items) {
+                    if (!item) return false;
+                    if (item.includes("/")) {
+                        const bits = item.split("/");
+                        if (!/^\d+$/.test(bits[1]) || parseInt(bits[1], 10) < 1) return false;
+                        item = bits[0];
+                    }
+                    if (item === "*") continue;
+                    if (item.includes("-")) {
+                        const ab = item.split("-");
+                        if (ab.length !== 2) return false;
+                        const a = this.tokenValue(ab[0], min, max, names);
+                        const b = this.tokenValue(ab[1], min, max, names);
+                        if (a === null || b === null || a > b) return false;
+                    } else if (this.tokenValue(item, min, max, names) === null) return false;
+                }
+                return true;
+            },
+            validate(expr) {
+                expr = (expr || "").trim();
+                if (!expr) return false;
+                if (expr[0] === "@") {
+                    return ["@reboot","@yearly","@annually","@monthly","@weekly","@daily","@midnight","@hourly"].includes(expr.toLowerCase());
+                }
+                const p = expr.split(/\s+/);
+                if (p.length !== 5) return false;
+                const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+                const dows = {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+                return this.fieldValid(p[0],0,59,null) && this.fieldValid(p[1],0,23,null) &&
+                       this.fieldValid(p[2],1,31,null) && this.fieldValid(p[3],1,12,months) &&
+                       this.fieldValid(p[4],0,7,dows);
+            },
+            describe(expr) {
+                const keywords = {"@reboot":"at every system boot","@hourly":"every hour, on the hour",
+                    "@daily":"every day at midnight","@midnight":"every day at midnight",
+                    "@weekly":"every week (Sunday at midnight)","@monthly":"every month (1st at midnight)",
+                    "@yearly":"every year (Jan 1 at midnight)","@annually":"every year (Jan 1 at midnight)"};
+                if (keywords[expr]) return keywords[expr];
+                const p = expr.split(/\s+/);
+                if (p.length < 5) return "";
+                const [minute, hour, dom, month, dow] = p;
+                const allRest = dom === "*" && month === "*" && dow === "*";
+                if (minute === "*" && hour === "*" && allRest) return "every minute";
+                const every = /^\*\/(\d+)$/.exec(minute);
+                if (every && hour === "*" && allRest) return "every " + every[1] + " minutes";
+                if (/^\d+$/.test(minute) && hour === "*" && allRest) return "at minute " + minute + " of every hour";
+                if (/^\d+$/.test(minute) && /^\d+$/.test(hour)) {
+                    const when = "at " + String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+                    if (allRest) return when + " every day";
+                    if (dom === "*" && month === "*" && /^[0-6]$/.test(dow)) {
+                        return when + " every " + ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][+dow];
+                    }
+                    if (/^\d+$/.test(dom) && month === "*" && dow === "*") return when + " on day " + dom + " of every month";
+                }
+                return "";
+            },
+            updateHint() {
+                const expr = (this.schedule || "").trim();
+                if (!expr) { this.valid = null; this.hint = ""; return; }
+                if (!this.validate(expr)) { this.valid = false; this.hint = "Invalid schedule expression."; return; }
+                this.valid = true;
+                const description = this.describe(expr);
+                this.hint = description ? "Runs " + description + "." : "Custom schedule";
+            },
+            async add() {
+                try {
+                    await PiWeb.api('/cron/add', { method: 'POST', body: { schedule: this.schedule, command: this.command } });
+                    this.schedule = ""; this.command = ""; this.preset = ""; this.valid = null; this.hint = "";
+                    PiWeb.toast("Cron job added.");
+                    htmx.ajax('GET', '/partials/cron', { target: '#cronTable', swap: 'innerHTML' });
+                } catch (error) {
+                    PiWeb.toast(error.message, 'error');
+                }
+            }
+        };
+    };
+
+    async function cronRemove(index) {
+        if (!confirm('Remove this cron job?')) return;
+        try {
+            await PiWeb.api('/cron/delete', { method: 'POST', body: { index: index } });
+            PiWeb.toast("Cron job removed.");
+            htmx.ajax('GET', '/partials/cron', { target: '#cronTable', swap: 'innerHTML' });
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

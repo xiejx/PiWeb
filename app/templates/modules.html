@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ t('mod.title', 'Modules') }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">{{ t('mod.title', 'Modules') }}</h1>
+        <div class="muted-small">
+            {{ t('mod.intro', 'Turn panel modules on or off. Changes apply immediately to the navbar — no restart and no config file edit needed.') }}
+        </div>
+    </div>
+    <span class="badge text-bg-secondary">{{ modules|length }} {{ t('mod.count', 'modules') }}</span>
+</div>
+
+<div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill fs-5"></i>
+    <div>
+        {{ t('mod.note', 'Toggles are stored in') }} <code>{{ settings.data_dir }}/modules_state.json</code>
+        {{ t('mod.note2', 'and override the defaults from config.toml. Disabling the module that hosts this page does not affect this page itself.') }}
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>{{ t('mod.module', 'Module') }}</th>
+                    <th>{{ t('mod.group', 'Group') }}</th>
+                    <th>{{ t('mod.type', 'Type') }}</th>
+                    <th>{{ t('mod.nav', 'Navbar') }}</th>
+                    <th>{{ t('mod.state', 'State') }}</th>
+                    <th class="text-end">{{ t('mod.actions', 'Actions') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in modules %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ row.title }}</div>
+                        <div class="muted-small"><code>{{ row.key }}</code>
+                            {% if row.overridden %}
+                                <span class="badge badge-soft-warning ms-1">{{ t('mod.override', 'override') }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>{{ row.group or t('mod.general', 'General') }}</td>
+                    <td>
+                        {% if row.external %}
+                            <span class="badge badge-soft-warning">{{ 'iframe' if row.iframe else 'external' }}</span>
+                            <div class="muted-small mono text-truncate" style="max-width: 220px">{{ row.url }}</div>
+                        {% else %}
+                            <span class="badge badge-soft-success">{{ t('mod.builtin', 'built-in') }}</span>
+                            <div class="muted-small mono">/{{ row.key }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.no_nav %}
+                            <span class="badge badge-soft-muted">{{ t('mod.hidden', 'hidden') }}</span>
+                        {% else %}
+                            <span class="badge badge-soft-success">{{ t('mod.visible', 'visible') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.enabled %}
+                            <span class="badge badge-soft-success">{{ t('mod.on', 'on') }}</span>
+                        {% else %}
+                            <span class="badge badge-soft-danger">{{ t('mod.off', 'off') }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-2">
+                            {% if row.enabled %}
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ row.href }}">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>{{ t('mod.open', 'Open') }}
+                                </a>
+                                <form method="post" action="/modules/toggle" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="key" value="{{ row.key }}">
+                                    <input type="hidden" name="enabled" value="0">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">
+                                        <i class="bi bi-pause-circle me-1"></i>{{ t('mod.disable', 'Disable') }}
+                                    </button>
+                                </form>
+                            {% else %}
+                                <a class="btn btn-sm btn-outline-secondary disabled" tabindex="-1" href="#"
+                                   aria-disabled="true">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>{{ t('mod.open', 'Open') }}
+                                </a>
+                                <form method="post" action="/modules/toggle" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="key" value="{{ row.key }}">
+                                    <input type="hidden" name="enabled" value="1">
+                                    <button class="btn btn-sm btn-success" type="submit">
+                                        <i class="bi bi-play-circle me-1"></i>{{ t('mod.enable', 'Enable') }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

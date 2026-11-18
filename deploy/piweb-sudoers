@@ -1,0 +1,14 @@
+# Sudoers drop-in for PiWeb (installed as /etc/sudoers.d/piweb).
+# Adjust the command list to your needs; NOPASSWD is required because the app
+# has no terminal to type a password.
+Defaults:piweb !requiretty
+
+piweb ALL=(ALL) NOPASSWD: /usr/bin/systemctl, /usr/sbin/service, \
+    /usr/bin/apt-get, /usr/bin/apt, /sbin/reboot, /sbin/shutdown, \
+    /sbin/poweroff, /usr/sbin/poweroff, /usr/bin/killall, /bin/kill, \
+    /usr/bin/raspi-config, /usr/sbin/raspi-config, \
+    /usr/bin/raspi-gpio, /usr/bin/vcgencmd, /usr/bin/docker, \
+    /usr/bin/crontab, /usr/sbin/chpasswd, /usr/sbin/useradd, \
+    /usr/sbin/usermod, /usr/sbin/userdel, /usr/bin/tee, \
+    /usr/bin/mount, /usr/bin/umount, /usr/bin/mkdir, /usr/bin/ntfs-3g, \
+    /usr/bin/nmcli, /usr/sbin/rfkill, /usr/sbin/ip

@@ -1,0 +1,43 @@
+<div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead>
+        <tr>
+            <th>PID</th>
+            <th>{{ t('common.user', 'User') }}</th>
+            <th class="text-end">CPU%</th>
+            <th class="text-end">MEM%</th>
+            <th class="text-end d-none d-lg-table-cell">RSS</th>
+            <th class="d-none d-md-table-cell">STAT</th>
+            <th class="d-none d-md-table-cell">TIME</th>
+            <th>{{ t('proc.command', 'Command') }}</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for process in processes %}
+            <tr x-show="!q || '{{ process.pid }} {{ process.user }} {{ process.command|e }}'.toLowerCase().includes(q.toLowerCase())">
+                <td class="mono">{{ process.pid }}</td>
+                <td>{{ process.user }}</td>
+                <td class="text-end">{{ process.cpu }}</td>
+                <td class="text-end">{{ process.mem }}</td>
+                <td class="text-end d-none d-lg-table-cell">{{ process.rss|int|filesize }}</td>
+                <td class="d-none d-md-table-cell mono">{{ process.stat }}</td>
+                <td class="d-none d-md-table-cell mono">{{ process.etime }}</td>
+                <td class="mono text-truncate" style="max-width: 420px" title="{{ process.command }}">{{ process.command }}</td>
+                <td class="text-end">
+                    <form method="post" action="/processes/kill" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="pid" value="{{ process.pid }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit"
+                                data-confirm="{{ t('proc.confirm_pid', 'Kill process') }} {{ process.pid }}?">
+                            {{ t('proc.kill', 'Kill') }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="9" class="text-body-secondary">{{ t('proc.none', 'No processes found.') }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

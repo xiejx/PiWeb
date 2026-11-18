@@ -1,0 +1,11 @@
+{% if error %}
+    <div class="alert alert-danger py-2 mb-0 small">{{ error }}</div>
+{% else %}
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="mono small">{{ file }}</span>
+        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="document.getElementById('logViewer').innerHTML = ''">
+            {{ t('common.close', 'Close') }}
+        </button>
+    </div>
+    <pre class="terminal mb-0">{{ content }}</pre>
+{% endif %}

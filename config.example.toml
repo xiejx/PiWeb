@@ -1,0 +1,182 @@
+# PiWeb 2.x configuration
+# Copy to config.toml and adjust. config.toml is ignored by git.
+# On first boot without credentials PiWeb sends you to /setup, which writes
+# an hashed password back into the [auth] section of this file.
+
+[server]
+# Uvicorn bind address. Keep 127.0.0.1 when Nginx sits in front.
+host = "127.0.0.1"
+port = 8000
+# Set when the app is served from a sub-path (e.g. "/piweb"). Leave empty at "/".
+root_path = ""
+# Trust X-Real-IP / X-Forwarded-For, but only from a loopback peer (Nginx).
+trusted_proxy = true
+
+[execution]
+# "local" runs commands directly (the service user must have the needed rights).
+# "ssh" runs every command through Paramiko on the host below, like the old PHP
+# version did. Use "ssh" if you do not want to grant the service user sudo.
+mode = "local"
+
+[ssh]
+host = "localhost"
+port = 22
+user = "pi"
+password = "raspberry"
+
+[auth]
+required = true
+user = "pi"
+# Plain text or a password hash ($2y$ bcrypt / pbkdf2_sha256$...).
+# /setup replaces this with a hash automatically.
+password = "raspberry"
+# Verify the login against the real system account over SSH instead of the
+# password stored here. Requires [execution] mode = "ssh" (or a reachable SSHd).
+check_system_user = false
+# TOTP secret (base32). Enable it from System Check instead of editing by hand.
+totp_secret = ""
+# DANGEROUS: serve the panel with no authentication at all.
+allow_unauthenticated = false
+# Emergency key for /update?key=... when the login is broken. Long random string.
+update_key = ""
+
+[auth.basic]
+# Optional HTTP Basic Auth, accepted in addition to the login form.
+enabled = false
+user = "api"
+password = "secret"
+
+[session]
+idle_timeout = 3600        # seconds without activity; 0 disables
+absolute_timeout = 43200   # seconds since login; 0 disables
+cookie_secure = false      # set true when served over HTTPS
+
+[login_throttle]
+max_failures = 5
+window = 900
+lockout = 900
+
+[alerts]
+# ntfy (no account needed) and/or Telegram. Empty = alerts disabled.
+ntfy_url = ""
+telegram_token = ""
+telegram_chat = ""
+temp_threshold = 75
+disk_threshold = 95
+
+[ui]
+lang = "en"                          # en, de, uk, es, fr
+dashboard_services = ["ssh", "nginx", "cron"]
+api_allow_ips = []                   # e.g. ["192.168.1.50", "192.168.1.0/24"]
+debug = false
+
+[sensors]
+# DS18B20 probes on 1-Wire are discovered automatically. Optional extras:
+# [[sensors.dht]]
+# chip = "DHT11"   # DHT11, DHT22 or AM2302
+# pin = 4
+# name = "DHT11"
+#
+# [[sensors.custom]]
+# name = "Tank level"
+# cmd = "python3 /home/pi/tank_level.py"
+# unit = "%"
+
+[storage]
+# Folders created by the mount action live below this directory.
+mount_root = "/mnt"
+
+# ── Modules ───────────────────────────────────────────────────────────────────
+# Rather than editing this file you can enable/disable modules on /modules,
+# which is remembered in data/modules_state.json (and wins over these values).
+# Built-in modules have a matching page; modules with a url are shown in an
+# iframe (or linked to directly when iframe = false).
+
+[modules.services]
+title = "Services"
+enabled = true
+
+[modules.processes]
+title = "Processes"
+enabled = true
+
+[modules.actions]
+title = "Actions"
+enabled = true
+
+[modules.gpio]
+title = "GPIO"
+enabled = true
+
+[modules.buttons]
+title = "Buttons"
+enabled = true
+
+[modules.rpi]
+title = "Raspberry Pi"
+enabled = true
+
+[modules.sensors]
+title = "Sensors"
+enabled = true
+
+[modules.wifi]
+title = "Wi-Fi"
+enabled = true
+
+[modules.docker]
+title = "Docker"
+enabled = false
+
+[modules.packages]
+title = "Packages"
+group = "System"
+enabled = true
+
+[modules.logs]
+title = "Logs"
+group = "System"
+enabled = true
+
+[modules.cron]
+title = "Cron"
+group = "System"
+enabled = true
+
+[modules.users]
+title = "Users"
+group = "System"
+enabled = true
+
+[modules.scripts]
+title = "Scripts"
+group = "System"
+enabled = true
+
+[modules.backup]
+title = "Backup"
+group = "System"
+enabled = true
+
+[modules.check]
+title = "System Check"
+group = "System"
+enabled = true
+
+[modules.tehybug]
+title = "TeHyBug"
+enabled = false
+url = "/modules/tehybug"
+
+[modules.button_api]
+title = "Button API"
+enabled = false
+no_nav = true
+
+# Third-party examples (not bundled). Point at any URL you want framed.
+# [modules.grafana]
+# title = "Grafana"
+# group = "System"
+# enabled = true
+# url = "http://127.0.0.1:3000"
+# iframe = true

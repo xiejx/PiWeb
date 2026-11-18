@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.check', 'System Check') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-clipboard-check me-1"></i>{{ t('check.title', 'System Check') }}</h1>
+        <div class="muted-small">Python {{ python_version }} · PiWeb</div>
+    </div>
+    <button id="recheck-btn" type="button" class="btn btn-outline-secondary btn-sm" onclick="recheck()">
+        <i class="bi bi-arrow-clockwise me-1"></i>{{ t('check.recheck', 'Re-check') }}
+    </button>
+</div>
+
+{% if fail_count == 0 %}
+<div class="alert alert-success d-flex gap-2 align-items-center">
+    <i class="bi bi-check-circle-fill fs-4"></i>
+    <div><strong>{{ t('check.all_pass', 'All checks passed.') }}</strong>
+        {{ t('check.all_pass_text', 'PiWeb is correctly installed and configured.') }}</div>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex gap-2 align-items-start">
+    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+    <div>
+        <strong>{{ fail_count }} {{ t('check.failed', 'check failed.') if fail_count == 1 else t('check.failed_plural', 'checks failed.') }}</strong>
+        {{ t('check.fix_hint', 'Click Fix next to any failing item to repair it, then click Re-check to refresh.') }}
+    </div>
+</div>
+{% endif %}
+
+{% for section in sections %}
+<div class="card mt-3">
+    <div class="card-header">
+        <i class="bi bi-folder2-open me-1"></i>{{ t('check.section.' ~ section.key, section.title) }}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <tbody>
+            {% for check in section.checks %}
+                <tr class="{% if not check.ok and not check.informational %}table-danger{% endif %}">
+                    <td class="ps-3" style="width:34px">
+                        {% if check.informational %}
+                            <i class="bi bi-info-circle text-info"></i>
+                        {% elif check.ok %}
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                        {% else %}
+                            <i class="bi bi-x-circle-fill text-danger"></i>
+                        {% endif %}
+                    </td>
+                    <td style="width:280px">
+                        <strong>{{ check.label }}</strong>
+                        {% if check.informational %}
+                            <span class="badge text-bg-light ms-1">{{ t('check.info', 'info') }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small text-body-secondary">{{ check.detail }}</td>
+                    <td class="text-end pe-3" style="width:100px">
+                        {% if not check.ok and not check.informational and check.fix %}
+                            <button type="button" class="btn btn-sm btn-warning"
+                                    onclick="applyFix('{{ check.fix }}', this)">
+                                <i class="bi bi-wrench me-1"></i>{{ t('check.fix', 'Fix') }}
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+<div class="row g-3 mt-0">
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-phone me-1"></i>{{ t('check.totp', 'Two-factor authentication') }}</span>
+                <span class="badge {{ 'text-bg-success' if totp_on else 'text-bg-secondary' }}">{{ 'ON' if totp_on else 'OFF' }}</span>
+            </div>
+            <div class="card-body" id="totp-panel">
+                {% if totp_on %}
+                    <p>{{ t('check.totp_on_text', 'The login page asks for a six-digit code from your authenticator app.') }}</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <input type="text" class="form-control form-control-sm" id="totp-code"
+                               placeholder="{{ t('check.totp_current', 'Current code') }}" maxlength="7"
+                               inputmode="numeric" style="max-width:150px">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="totpDisable(this)">
+                            {{ t('check.totp_disable', 'Turn off') }}
+                        </button>
+                    </div>
+                {% else %}
+                    <p>{{ t('check.totp_off_text', 'Add a second factor to the login page: a six-digit code from an authenticator app (Aegis, Google Authenticator, 1Password…). Worth it if this panel is ever reachable from outside your home network.') }}</p>
+                    <button type="button" class="btn btn-sm btn-primary" id="totp-start-btn" onclick="totpStart(this)">
+                        <i class="bi bi-plus-lg me-1"></i>{{ t('check.totp_setup', 'Set up') }}
+                    </button>
+                    <div id="totp-setup" class="mt-3 d-none">
+                        <p class="mb-1"><strong>1.</strong> {{ t('check.totp_secret_hint', 'In your app choose “enter a setup key” and type:') }}</p>
+                        <p class="mb-1"><code id="totp-secret" class="fs-6" style="letter-spacing:1px"></code></p>
+                        <p class="muted-small text-break mb-2">
+                            {{ t('check.totp_uri_hint', 'or open this link on the phone:') }}
+                            <span id="totp-uri" class="mono"></span>
+                        </p>
+                        <p class="mb-1"><strong>2.</strong> {{ t('check.totp_code_hint', 'Enter the code the app shows:') }}</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <input type="text" class="form-control form-control-sm" id="totp-code"
+                                   placeholder="{{ t('check.totp_code', '6-digit code') }}" maxlength="7"
+                                   inputmode="numeric" style="max-width:150px">
+                            <button type="button" class="btn btn-sm btn-success" onclick="totpEnable(this)">
+                                {{ t('check.totp_verify', 'Verify and turn on') }}
+                            </button>
+                        </div>
+                    </div>
+                {% endif %}
+                <p id="totp-msg" class="mt-2 mb-0 d-none"></p>
+                <p class="muted-small mt-2 mb-0">
+                    {{ t('check.totp_recovery', 'Lost the phone? Remove the totp_secret line from the [auth] section of config.toml over SSH.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bell me-1"></i>{{ t('check.alerts', 'Alerts') }}</span>
+                <span class="badge {{ 'text-bg-success' if alerts_on else 'text-bg-secondary' }}">{{ 'CONFIGURED' if alerts_on else 'OFF' }}</span>
+            </div>
+            <div class="card-body">
+                {% if alerts_on %}
+                    <p>{{ t('check.alerts_on_text', 'A message is pushed on high CPU temperature') }} (≥ {{ alert_temp }} °C),
+                        {{ t('check.alerts_on_text2', 'under-voltage, throttling, a nearly full disk') }} (≥ {{ alert_disk }}%)
+                        {{ t('check.alerts_on_text3', 'and login lockouts.') }}</p>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="alertTest(this)">
+                        <i class="bi bi-send me-1"></i>{{ t('check.alert_test', 'Send test alert') }}
+                    </button>
+                    <p class="muted-small mt-2 mb-0">
+                        {{ t('check.alert_cron', 'Periodic temperature, power and disk checks should be scheduled from the') }}
+                        <a href="/cron">{{ t('nav.cron', 'Cron') }}</a>
+                        {{ t('check.alert_cron2', 'page (once every five minutes). Lockout alerts are sent immediately.') }}
+                    </p>
+                {% else %}
+                    <p>{{ t('check.alerts_off_text', 'Get a push message on your phone when the Pi runs hot, loses voltage, fills its disk, or locks someone out after failed logins.') }}</p>
+                    <p class="muted-small mb-0">
+                        {{ t('check.alerts_config', 'Set alerts.ntfy_url (the ntfy app, no account needed) or alerts.telegram_token + alerts.telegram_chat in config.toml, then reload this page.') }}
+                    </p>
+                {% endif %}
+                <p id="alert-msg" class="mt-2 mb-0 d-none"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-box-arrow-in-right me-1"></i>{{ t('check.auth_log', 'Recent sign-in activity') }}</div>
+    {% if auth_events %}
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <tbody>
+                {% for event in auth_events %}
+                    <tr>
+                        <td class="ps-3" style="width:170px">
+                            <span class="badge text-bg-{{ event.tone }}">{{ event.label }}</span>
+                        </td>
+                        <td class="mono small" style="width:175px">{{ event.time }}</td>
+                        <td class="mono small" style="width:145px">{{ event.ip }}</td>
+                        <td class="small text-body-secondary">{{ event.detail }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="card-body muted-small">
+            {{ t('check.auth_empty', 'No authentication events recorded yet. Sign-ins, failed attempts and lockouts are written to command_logs/auth.log.') }}
+        </div>
+    {% endif %}
+</div>
+
+<p class="muted-small mt-3 mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    {{ t('check.fix_note', 'Fix commands run with sudo through the configured executor') }}
+    ({{ settings.execution_mode }}).
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setNotice(id, message, tone) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        element.className = 'mt-2 mb-0 text-' + (tone || 'body-secondary');
+        element.textContent = message;
+    }
+
+    async function applyFix(key, button) {
+        const previous = button.innerHTML;
+        button.disabled = true;
+        button.textContent = 'Fixing…';
+        try {
+            const data = await PiWeb.api('/ajax/check/fix', {
+                method: 'POST',
+                body: { fix: key }
+            });
+            if (!data.ok) throw new Error(data.output || data.error || 'Fix failed');
+            PiWeb.toast(data.output || 'Fix applied.');
+            setTimeout(function () { location.reload(); }, 900);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+            button.disabled = false;
+            button.innerHTML = previous;
+        }
+    }
+
+    async function recheck() {
+        const button = document.getElementById('recheck-btn');
+        if (button) button.disabled = true;
+        try {
+            await PiWeb.api('/ajax/check/rerun', { method: 'POST' });
+            location.reload();
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+            if (button) button.disabled = false;
+        }
+    }
+
+    async function totpStart(button) {
+        const previous = button.innerHTML;
+        button.disabled = true;
+        button.textContent = 'Preparing…';
+        try {
+            const data = await PiWeb.api('/ajax/check/totp/start', { method: 'POST' });
+            if (!data.ok) throw new Error(data.error || 'Could not start the setup');
+            document.getElementById('totp-secret').textContent = data.secret;
+            document.getElementById('totp-uri').textContent = data.uri;
+            document.getElementById('totp-setup').classList.remove('d-none');
+            setNotice('totp-msg',
+                'Enter the secret in your app, then verify a code below.', 'body-secondary');
+            button.classList.add('d-none');
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+            button.disabled = false;
+            button.innerHTML = previous;
+        }
+    }
+
+    async function totpEnable(button) {
+        const code = document.getElementById('totp-code').value.trim();
+        if (!code) {
+            PiWeb.toast('Enter the six-digit code first.', 'warning');
+            return;
+        }
+        button.disabled = true;
+        try {
+            const data = await PiWeb.api('/ajax/check/totp/enable', {
+                method: 'POST',
+                body: { code: code }
+            });
+            if (!data.ok) throw new Error(data.error || 'Verification failed');
+            setNotice('totp-msg', data.message || 'Two-factor login is on.', 'success');
+            PiWeb.toast('Two-factor login is on.');
+            setTimeout(function () { location.reload(); }, 900);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+            button.disabled = false;
+        }
+    }
+
+    async function totpDisable(button) {
+        const code = document.getElementById('totp-code').value.trim();
+        if (!code) {
+            PiWeb.toast('Enter the current six-digit code first.', 'warning');
+            return;
+        }
+        if (!confirm('Turn off two-factor authentication?')) return;
+        button.disabled = true;
+        try {
+            const data = await PiWeb.api('/ajax/check/totp/disable', {
+                method: 'POST',
+                body: { code: code }
+            });
+            if (!data.ok) throw new Error(data.error || 'Verification failed');
+            setNotice('totp-msg', data.message || 'Two-factor login is off.', 'success');
+            PiWeb.toast('Two-factor login is off.');
+            setTimeout(function () { location.reload(); }, 900);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+            button.disabled = false;
+        }
+    }
+
+    async function alertTest(button) {
+        button.disabled = true;
+        try {
+            const data = await PiWeb.api('/ajax/check/alerts/test', { method: 'POST' });
+            if (!data.ok) throw new Error(data.message || 'Alert test failed');
+            setNotice('alert-msg', data.message || 'Test alert sent.', 'success');
+            PiWeb.toast(data.message || 'Test alert sent.');
+        } catch (error) {
+            setNotice('alert-msg', error.message, 'danger');
+            PiWeb.toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.actions', 'Actions') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ t('act.title', 'Actions') }}</h1>
+
+{% if result %}
+    <div class="alert alert-{{ result.level }}">
+        <div class="fw-semibold">{{ result.message }}</div>
+        {% if result.command %}
+            <div class="mt-2 small">Command: <code>{{ result.command }}</code></div>
+        {% endif %}
+        {% if result.output %}
+            <pre class="terminal mt-2 mb-0">{{ result.output }}</pre>
+        {% endif %}
+    </div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-7">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-terminal me-1"></i>{{ t('act.commands', 'Commands') }}</div>
+            <div class="card-body">
+                <form method="post" action="/actions/run" class="row g-2 align-items-end mb-4"
+                      data-confirm="{{ t('act.confirm_kill', 'Kill process?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="kill_pid">
+                    <div class="col-12 col-md-4"><label class="form-label small">{{ t('act.kill_pid', 'Kill by PID') }}</label>
+                        <input class="form-control" type="number" min="1" name="pid" placeholder="PID" required></div>
+                    <div class="col-auto"><button class="btn btn-danger" type="submit">{{ t('act.kill', 'Kill') }}</button></div>
+                </form>
+
+                <form method="post" action="/actions/run" class="row g-2 align-items-end mb-4"
+                      data-confirm="{{ t('act.confirm_kill_name', 'Kill all processes with this name?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="kill_pname">
+                    <div class="col-12 col-md-4"><label class="form-label small">{{ t('act.kill_pname', 'Kill by name') }}</label>
+                        <input class="form-control" name="pname" placeholder="Process name" pattern="[a-zA-Z0-9_.-]+" required></div>
+                    <div class="col-auto"><button class="btn btn-danger" type="submit">{{ t('act.kill', 'Kill') }}</button></div>
+                </form>
+
+                <form method="post" action="/actions/run" class="row g-2 align-items-end mb-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="start_sname">
+                    <div class="col-12 col-md-4"><label class="form-label small">{{ t('act.start_service', 'Start service') }}</label>
+                        <input class="form-control" name="sname" placeholder="Service" pattern="[a-zA-Z0-9_.-]+" required></div>
+                    <div class="col-auto"><button class="btn btn-success" type="submit">{{ t('act.start', 'Start') }}</button></div>
+                </form>
+
+                <form method="post" action="/actions/run" class="row g-2 align-items-end mb-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="stop_sname">
+                    <div class="col-12 col-md-4"><label class="form-label small">{{ t('act.stop_service', 'Stop service') }}</label>
+                        <input class="form-control" name="sname" placeholder="Service" pattern="[a-zA-Z0-9_.-]+" required></div>
+                    <div class="col-auto"><button class="btn btn-warning" type="submit">{{ t('act.stop', 'Stop') }}</button></div>
+                </form>
+
+                <hr>
+                <form method="post" action="/actions/run" data-confirm="{{ t('act.confirm_cmd', 'Execute this command?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="cmd">
+                    <label class="form-label small">{{ t('act.exec_label', 'Execute a command') }}
+                        <span class="text-danger">{{ t('act.advanced', '— advanced users only') }}</span></label>
+                    <div class="input-group">
+                        <input class="form-control mono" name="cmd" placeholder="e.g. sudo systemctl restart nginx" required>
+                        <button class="btn btn-primary" type="submit">{{ t('act.exec', 'Execute') }}</button>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="background-command" name="background_command" value="1">
+                        <label class="form-check-label small" for="background-command">
+                            {{ t('act.background', 'Run in background and save output to a log file') }}
+                        </label>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if logs %}
+        <div class="card mt-3">
+            <div class="card-header"><i class="bi bi-file-text me-1"></i>{{ t('act.bg_logs', 'Background command logs') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>{{ t('common.file', 'File') }}</th><th>{{ t('common.date', 'Date') }}</th><th></th></tr></thead>
+                    <tbody>
+                    {% for log in logs %}
+                        <tr id="log-row-{{ loop.index }}">
+                            <td>
+                                <a href="#" class="mono"
+                                   hx-get="/actions/log?file={{ log.name|urlencode }}" hx-target="#logViewer" hx-swap="innerHTML">{{ log.name }}</a>
+                            </td>
+                            <td>{{ log.mtime|int }}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger" type="button"
+                                        data-log="{{ log.name }}" onclick="deleteLog(this, {{ loop.index }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-body">
+                <div id="logViewer"><p class="muted-small mb-0">{{ t('act.select_log', 'Select a log to view its output.') }}</p></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card border-warning-subtle">
+            <div class="card-header"><i class="bi bi-tools me-1"></i>{{ t('act.system', 'System') }}</div>
+            <div class="card-body">
+                <form method="post" action="/actions/run" data-confirm="{{ t('act.confirm_reboot', 'Reboot the Raspberry Pi now?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="reboot">
+                    <label class="form-label small">{{ t('act.reboot_label', 'Reboot Raspberry Pi') }}</label>
+                    <div><button class="btn btn-danger w-100" type="submit">
+                        <i class="bi bi-arrow-repeat me-1"></i>{{ t('act.reboot', 'Reboot') }}</button></div>
+                </form>
+                <hr>
+                <form method="post" action="/actions/run"
+                      data-confirm="{{ t('act.confirm_shutdown', 'Shut down the Raspberry Pi now?') }}"
+                      data-confirm-again="{{ t('act.confirm_shutdown_again', 'Really power off? The panel will go offline until you unplug and re-apply power.') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="shutdown">
+                    <label class="form-label small">{{ t('act.shutdown_label', 'Shut down Raspberry Pi') }}</label>
+                    <div><button class="btn btn-outline-danger w-100" type="submit">
+                        <i class="bi bi-power me-1"></i>{{ t('act.shutdown', 'Shut down') }}</button></div>
+                </form>
+                <hr>
+                <form method="post" action="/actions/run" data-confirm="{{ t('act.confirm_update', 'Update PiWeb from GitHub?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="git_pull">
+                    <label class="form-label small">{{ t('act.update_label', 'Update PiWeb from GitHub') }}</label>
+                    <div class="input-group">
+                        <select class="form-select" name="git_target" id="gitTarget">
+                            <option value="master">{{ t('act.latest', 'Latest (master branch)') }}</option>
+                            {% for tag in tags %}<option value="{{ tag }}">Release {{ tag }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-outline-secondary" type="button" onclick="refreshTags()" title="Fetch tags">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button class="btn btn-warning" type="submit">{{ t('act.update', 'Update') }}</button>
+                    </div>
+                    <div class="muted-small mt-2">
+                        {% if settings.login_required %}{{ t('act.update_note', 'config.toml, buttons, scripts and logs are preserved.') }}{% endif %}
+                    </div>
+                </form>
+                <hr>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-outline-secondary" href="/backup">
+                        <i class="bi bi-life-preserver me-1"></i>{{ t('backup.title', 'Backup & restore') }}
+                    </a>
+                    <a class="btn btn-outline-info" href="/check">
+                        <i class="bi bi-clipboard-check me-1"></i>{{ t('act.syscheck', 'System check') }}
+                    </a>
+                    {% if button_api %}
+                        <a class="btn btn-outline-info" href="/buttons">
+                            <i class="bi bi-link-45deg me-1"></i>{{ t('btn.api', 'Button API') }}
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header"><i class="bi bi-book me-1"></i>{{ t('act.useful', 'Useful commands') }}</div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    <dt class="col-5">{{ t('act.use_python', 'Run a Python script') }}</dt><dd class="col-7"><code>python3 /path/script.py</code></dd>
+                    <dt class="col-5">{{ t('act.use_apt', 'Update package lists') }}</dt><dd class="col-7"><code>sudo apt-get update</code></dd>
+                    <dt class="col-5">{{ t('act.use_firmware', 'Update firmware') }}</dt><dd class="col-7"><code>sudo rpi-update</code></dd>
+                    <dt class="col-5">{{ t('act.use_reboot', 'Reboot') }}</dt><dd class="col-7"><code>sudo reboot</code></dd>
+                    <dt class="col-5">{{ t('act.use_shutdown', 'Shut down') }}</dt><dd class="col-7"><code>sudo poweroff</code></dd>
+                    <dt class="col-5">{{ t('act.use_permissions', 'Check permissions') }}</dt><dd class="col-7"><code>ls -la ~/piweb</code></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function refreshTags() {
+        try {
+            const data = await PiWeb.api('/ajax/git_tags', { method: 'POST' });
+            const select = document.getElementById('gitTarget');
+            const current = select.value;
+            select.length = 1;
+            (data.tags || []).forEach(function (tag) {
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = 'Release ' + tag;
+                select.appendChild(option);
+            });
+            select.value = current;
+            if (data.error) PiWeb.toast('Fetched local tags; GitHub fetch failed: ' + data.error, 'warning');
+            else PiWeb.toast('Release list refreshed.');
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+
+    async function deleteLog(button, index) {
+        const name = button.dataset.log;
+        if (!confirm('Delete log "' + name + '"?')) return;
+        try {
+            await PiWeb.api('/actions/log/delete', { method: 'POST', body: new URLSearchParams({ file: name, csrf_token: PiWeb.csrf }) });
+            document.getElementById('log-row-' + index)?.remove();
+            PiWeb.toast('Log deleted.');
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

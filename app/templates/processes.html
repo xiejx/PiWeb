@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.processes', 'Processes') }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">{{ t('proc.title', 'System processes') }}</h1>
+        <div class="muted-small">{{ t('proc.subtitle', 'Sorted by CPU usage. Kill a process only when you know what it does.') }}</div>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm"
+            hx-get="/partials/processes" hx-target="#processArea" hx-swap="innerHTML">
+        <i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}
+    </button>
+</div>
+
+<div class="card" x-data="{ q: '' }">
+    <div class="card-header">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-4">
+                <input class="form-control form-control-sm" placeholder="{{ t('common.search', 'Search…') }}" x-model="q">
+            </div>
+            <div class="col text-md-end muted-small" x-text="q ? '{{ t('common.filter_active', 'Filtering list') }}' : ''"></div>
+        </div>
+    </div>
+    <div id="processArea" hx-get="/partials/processes" hx-trigger="every 20s" hx-swap="innerHTML">
+        {% include "partials/processes_table.html" %}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-x-octagon me-1"></i>{{ t('proc.kill_by_name', 'Kill processes by name') }}</div>
+    <div class="card-body">
+        <form method="post" action="/processes/kill" class="row g-2 align-items-center"
+              data-confirm="{{ t('proc.confirm_name', 'Kill all processes with this name?') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="col-12 col-md-4">
+                <input class="form-control" name="pname" placeholder="e.g. vlc" pattern="[a-zA-Z0-9_.-]+" required>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-danger" type="submit"><i class="bi bi-x-lg me-1"></i>{{ t('proc.kill', 'Kill') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

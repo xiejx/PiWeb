@@ -1,0 +1,238 @@
+:root {
+    --piweb-accent: #d6336c;
+    --piweb-accent-soft: rgba(214, 51, 108, 0.12);
+    --piweb-nav: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bs-body-bg);
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.piweb-navbar {
+    background: var(--piweb-nav);
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+}
+
+.piweb-navbar .navbar-brand,
+.piweb-navbar .nav-link {
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.piweb-navbar .nav-link:hover,
+.piweb-navbar .nav-link.active {
+    color: #fff;
+}
+
+.piweb-navbar .nav-link.active {
+    border-bottom: 2px solid var(--piweb-accent);
+}
+
+.piweb-navbar .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.nav-link.btn {
+    text-decoration: none;
+}
+
+.card {
+    border-radius: 0.8rem;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.05);
+}
+
+.card-header {
+    background: transparent;
+    font-weight: 600;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.stat-card .stat-value {
+    font-size: 1.9rem;
+    font-weight: 650;
+    line-height: 1.1;
+}
+
+.stat-card .stat-label {
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color);
+}
+
+.stat-card .stat-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    background: var(--piweb-accent-soft);
+    color: var(--piweb-accent);
+    font-size: 1.25rem;
+}
+
+.progress {
+    height: 0.5rem;
+    border-radius: 1rem;
+}
+
+.table-sm td, .table-sm th {
+    vertical-align: middle;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.55rem 0.75rem;
+}
+
+.badge-soft-success { background: rgba(25, 135, 84, 0.14); color: #198754; }
+.badge-soft-danger  { background: rgba(220, 53, 69, 0.14); color: #dc3545; }
+.badge-soft-warning { background: rgba(255, 193, 7, 0.18); color: #997404; }
+.badge-soft-muted   { background: rgba(108, 117, 125, 0.14); color: #6c757d; }
+
+.live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #198754;
+    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.5);
+    animation: live-pulse 2s infinite;
+}
+
+@keyframes live-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(25, 135, 84, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+}
+
+.live-legend {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 2px;
+}
+
+.live-legend-temp { background: #d9534f; }
+.live-legend-load { background: #3b82f6; }
+
+.terminal {
+    background: #111318;
+    color: #d6e2ea;
+    border-radius: 0.6rem;
+    padding: 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    max-height: 420px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.gpio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.gpio-pin {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.7rem;
+    padding: 0.75rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.gpio-pin.pin-high { border-color: #198754; background: rgba(25, 135, 84, 0.12); }
+.gpio-pin.pin-input { border-color: #0dcaf0; }
+
+.script-list {
+    max-height: 420px;
+    overflow: auto;
+}
+
+.script-item.active {
+    background: var(--piweb-accent-soft);
+    color: var(--piweb-accent);
+    font-weight: 600;
+}
+
+.CodeMirror, .cm-editor {
+    border-radius: 0.6rem;
+}
+
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+.footer {
+    border-top: 1px solid var(--bs-border-color-translucent);
+    background: var(--bs-tertiary-bg);
+}
+
+.footer a {
+    text-decoration: none;
+}
+
+[data-bs-theme="dark"] .card {
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .gpio-pin {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-bs-theme="dark"] .piweb-navbar {
+    background: linear-gradient(135deg, #0b1220 0%, #05080f 100%);
+}
+
+.login-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 15% 20%, rgba(214, 51, 108, 0.16), transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(13, 202, 240, 0.12), transparent 45%),
+                var(--bs-body-bg);
+    padding: 1.5rem;
+}
+
+.login-card {
+    width: min(420px, 100%);
+}
+
+.log-viewer {
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 65vh;
+    overflow: auto;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.muted-small {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+
+.boot-editor textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    min-height: 320px;
+}

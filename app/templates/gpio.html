@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}GPIO{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">{{ t('gpio.title', 'GPIO control') }}</h1>
+        <div class="muted-small">{{ t('gpio.subtitle', 'Only numeric BCM pins in IN/OUT mode can be switched. Power, ground and alternate-function pins are fixed.') }}</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="/gpio"><i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}</a>
+</div>
+
+{% if gpio.source == 'none' %}
+    <div class="alert alert-danger">
+        <i class="bi bi-x-octagon me-1"></i>
+        {{ t('gpio.unavailable', 'Unable to read GPIO data. Install WiringPi (Pi 1–4) or make sure raspi-gpio is available (Pi 5).') }}
+    </div>
+{% elif gpio.source == 'raspi-gpio' %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        {{ t('gpio.rpi5', 'WiringPi is not available on this model (Pi 5 uses the RP1 chip). Raw raspi-gpio output is shown; switching is disabled in this mode.') }}
+    </div>
+    <pre class="terminal">{{ gpio.raw }}</pre>
+{% else %}
+    <div class="card" x-data>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 align-middle gpio-table">
+                <thead>
+                <tr class="table-light">
+                    <th>BCM</th><th>wPi</th><th>{{ t('gpio.name', 'Name') }}</th><th>{{ t('gpio.mode', 'Mode') }}</th><th>V</th>
+                    <th class="text-center">{{ t('gpio.physical', 'Physical') }}</th>
+                    <th>V</th><th>{{ t('gpio.mode', 'Mode') }}</th><th>{{ t('gpio.name', 'Name') }}</th><th>wPi</th><th>BCM</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in gpio.rows %}
+                    <tr>
+                        {% set left = row.left %}
+                        {% set right = row.right %}
+                        <td class="mono {{ 'table-success' if row.left_gpio }}">{{ left.get('bcm', '') }}</td>
+                        <td class="mono">{{ left.get('wpi', '') }}</td>
+                        <td>
+                            {% set name = left.get('name', '') %}
+                            {% if name|lower in ['0v', '3.3v', '5v'] %}
+                                <span class="badge {{ 'text-bg-dark' if name|lower == '0v' else 'text-bg-danger' }}">{{ 'GND' if name|lower == '0v' else name|upper }}</span>
+                            {% else %}{{ name }}{% endif %}
+                        </td>
+                        {% set lmode = left.get('mode', '') %}
+                        {% set lmode_lower = lmode|lower %}
+                        <td style="width: 92px">
+                            {% if row.left_gpio and lmode_lower in ['in', 'out'] %}
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if lmode_lower == 'out' %}checked{% endif %}
+                                       @change="setGpio({{ left.get('bcm') }}, 'mode', $event.target.checked ? 'out' : 'in')">
+                            {% else %}{{ lmode }}{% endif %}
+                        </td>
+                        <td style="width: 76px">
+                            {% if row.left_gpio and lmode_lower == 'out' and 'v' in left %}
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if left.get('v') == '1' %}checked{% endif %}
+                                       @change="setGpio({{ left.get('bcm') }}, 'v', $event.target.checked ? '1' : '0')">
+                            {% else %}{{ left.get('v', '') }}{% endif %}
+                        </td>
+                        <td class="text-center fw-semibold mono">{{ row.physical }}</td>
+                        {% set rmode = right.get('mode', '') %}
+                        {% set rmode_lower = rmode|lower %}
+                        <td style="width: 76px">
+                            {% if row.right_gpio and rmode_lower == 'out' and 'v' in right %}
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if right.get('v') == '1' %}checked{% endif %}
+                                       @change="setGpio({{ right.get('bcm') }}, 'v', $event.target.checked ? '1' : '0')">
+                            {% else %}{{ right.get('v', '') }}{% endif %}
+                        </td>
+                        <td style="width: 92px">
+                            {% if row.right_gpio and rmode_lower in ['in', 'out'] %}
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if rmode_lower == 'out' %}checked{% endif %}
+                                       @change="setGpio({{ right.get('bcm') }}, 'mode', $event.target.checked ? 'out' : 'in')">
+                            {% else %}{{ rmode }}{% endif %}
+                        </td>
+                        <td>
+                            {% set name = right.get('name', '') %}
+                            {% if name|lower in ['0v', '3.3v', '5v'] %}
+                                <span class="badge {{ 'text-bg-dark' if name|lower == '0v' else 'text-bg-danger' }}">{{ 'GND' if name|lower == '0v' else name|upper }}</span>
+                            {% else %}{{ name }}{% endif %}
+                        </td>
+                        <td class="mono">{{ right.get('wpi', '') }}</td>
+                        <td class="mono {{ 'table-success' if row.right_gpio }}">{{ right.get('bcm', '') }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="alert alert-warning mt-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>{{ t('gpio.warning', 'Warning') }}:</strong>
+        {{ t('gpio.warning_text', 'Incorrect GPIO configuration can damage your Raspberry Pi or connected hardware.') }}
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('gpio.legend', 'Legend') }}</div>
+        <div class="card-body small">
+            <ul class="mb-0">
+                <li><strong>BCM</strong> — Broadcom pin number</li>
+                <li><strong>wPi</strong> — WiringPi pin number</li>
+                <li><strong>Mode</strong> — IN (input) / OUT (output); pins in an alternate function (ALT, I2C, SPI, UART) are read-only</li>
+                <li><strong>V</strong> — current level (0 / 1); writable only while the pin is in OUT mode</li>
+                <li><strong>Physical</strong> — header pin numbers (left | right)</li>
+                <li><span class="badge text-bg-danger">3.3V</span> / <span class="badge text-bg-danger">5V</span> power,
+                    <span class="badge text-bg-dark">GND</span> ground — fixed, cannot be switched.</li>
+            </ul>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function setGpio(bcm, field, value) {
+        try {
+            await PiWeb.api('/gpio/set', { method: 'POST', body: { bcm: bcm, field: field, value: value } });
+            PiWeb.toast('GPIO ' + bcm + ': ' + field + ' = ' + value);
+        } catch (error) {
+            PiWeb.toast(error.message, 'error');
+        }
+    }
+</script>
+{% endblock %}

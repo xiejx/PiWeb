@@ -1,0 +1,23 @@
+{% if jobs %}
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <tbody>
+            {% for job in jobs %}
+                <tr>
+                    <td class="mono small {{ 'text-body-secondary' if job.comment }}">{{ job.line }}</td>
+                    <td class="text-end" style="width: 70px">
+                        {% if not job.comment %}
+                            <button class="btn btn-sm btn-outline-danger" type="button" onclick="cronRemove({{ job.index }})"
+                                    title="{{ t('common.delete', 'Delete') }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p class="text-body-secondary p-3 mb-0">{{ t('cron.none', 'No cron jobs for this user.') }}</p>
+{% endif %}

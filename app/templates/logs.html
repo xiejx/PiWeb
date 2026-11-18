@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ t('log.title', 'System logs') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ t('log.title', 'System logs') }}</h1>
+
+<form class="card mb-3"
+      hx-get="/logs/view" hx-target="#logOutput" hx-swap="innerHTML" hx-indicator="#logSpinner">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="logSource">{{ t('log.source', 'Source') }}</label>
+                <select class="form-select" id="logSource" name="source">
+                    {% for value, label in sources.items() %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" for="logLines">{{ t('log.lines', 'Lines') }}</label>
+                <select class="form-select" id="logLines" name="lines">
+                    <option>100</option><option selected>200</option><option>500</option>
+                    <option>1000</option><option>2000</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-4">
+                <label class="form-label" for="logFilter">{{ t('log.filter', 'Filter') }}</label>
+                <input class="form-control" id="logFilter" name="filter" placeholder="{{ t('log.contains', 'text contains…') }}">
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button class="btn btn-primary" type="submit">
+                    <span id="logSpinner" class="htmx-indicator spinner-border spinner-border-sm me-1"></span>
+                    <i class="bi bi-search me-1"></i>{{ t('log.view', 'View') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div id="logOutput" hx-get="/logs/view" hx-trigger="load" hx-swap="innerHTML">
+    <pre class="terminal log-viewer">{{ t('log.select', 'Select a source and click View.') }}</pre>
+</div>
+{% endblock %}

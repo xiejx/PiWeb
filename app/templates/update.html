@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ t('update.title', 'Updater') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3"><i class="bi bi-cloud-arrow-down me-1"></i>{{ t('update.title', 'Updater') }}</h1>
+
+<div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+    <div>
+        <strong>{{ t('update.warning_title', 'This runs git in the application directory.') }}</strong>
+        {{ t('update.warning_body', 'The update endpoint is a standalone recovery page: it works even when the rest of the panel is broken. Your configuration, buttons and logs are preserved.') }}
+        <div class="mt-1 small">
+            {{ t('update.dir', 'Repository') }}: <code>{{ base_dir }}</code>
+        </div>
+    </div>
+</div>
+
+{% if did_run %}
+    <div class="alert alert-{{ 'success' if ok else 'danger' }}">
+        <div class="fw-semibold">
+            {% if ok %}
+                <i class="bi bi-check-circle-fill me-1"></i>{{ t('update.done', 'Update finished') }}
+            {% else %}
+                <i class="bi bi-x-circle-fill me-1"></i>{{ t('update.problems', 'Update reported problems') }}
+            {% endif %}
+        </div>
+        <pre class="terminal mt-2 mb-0">{{ output }}</pre>
+        <div class="mt-2 small">
+            <a href="/">{{ t('update.dashboard', 'Reload the dashboard') }}</a>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-git me-1"></i>{{ t('update.select', 'Version') }}</div>
+    <div class="card-body">
+        <form method="post" action="/update/run"
+              data-confirm="{{ t('update.confirm', 'Update PiWeb now? This runs git in the application directory.') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            {% if key %}
+                <input type="hidden" name="key" value="{{ key }}">
+            {% endif %}
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="gitTarget">{{ t('update.target', 'Update to') }}</label>
+                    <select class="form-select" id="gitTarget" name="git_target">
+                        <option value="master" {% if selected == 'master' %}selected{% endif %}>
+                            {{ t('update.latest', 'Latest (master branch)') }}
+                        </option>
+                        {% for tag in tags %}
+                            <option value="{{ tag }}" {% if selected == tag %}selected{% endif %}>
+                                Release {{ tag }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <button class="btn btn-warning" type="submit">
+                        <i class="bi bi-download me-1"></i>{{ t('update.run', 'Update') }}
+                    </button>
+                </div>
+            </div>
+            <div class="muted-small mt-2">
+                {{ t('update.hint', 'Master runs «git pull origin master»; a release tag runs «git fetch --tags» followed by «git reset --hard» to that tag.') }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<p class="muted-small mt-3">
+    {{ t('update.fallback', 'If this page fails too, pull with «git pull» over SSH or fix the broken file directly.') }}
+</p>
+{% endblock %}

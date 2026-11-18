@@ -1,0 +1,27 @@
+[Unit]
+Description=PiWeb web control panel
+Documentation=https://github.com/xiejx/PiWeb
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=piweb
+Group=piweb
+WorkingDirectory=@PIWEB_DIR@
+Environment="PIWEB_CONFIG=@PIWEB_DIR@/config.toml"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=@PIWEB_DIR@/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+PrivateTmp=true
+# The panel runs privileged commands (service restart, apt, reboot) through
+# sudo, so NoNewPrivileges must stay disabled. Harden with the sudoers file.
+NoNewPrivileges=false
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

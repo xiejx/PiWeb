@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-bs-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="PiWeb — Raspberry Pi control panel">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="/static/images/raspberry.png" type="image/png">
+    <title>{% block title %}{{ t('nav.dashboard', 'Dashboard') }}{% endblock %} — PiWeb</title>
+    <link href="/static/vendor/bootstrap.min.css?v={{ asset_version }}" rel="stylesheet">
+    <link href="/static/vendor/bootstrap-icons.min.css?v={{ asset_version }}" rel="stylesheet">
+    <link href="/static/css/app.css?v={{ asset_version }}" rel="stylesheet">
+    <script>
+        try {
+            const saved = localStorage.getItem('piweb-theme');
+            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+        } catch (e) {}
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark piweb-navbar sticky-top">
+    <div class="container-fluid px-3 px-lg-4">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+            <img src="/static/images/raspberry.png" alt="PiWeb" width="28" height="28">
+            <span class="fw-semibold">PiWeb</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link {% if current_path == '/' %}active{% endif %}" href="/">
+                        <i class="bi bi-speedometer2 me-1"></i>{{ t('nav.dashboard', 'Dashboard') }}
+                    </a>
+                </li>
+                {% for module in nav_inline %}
+                    {% set href = module_href(module) %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if current_path.startswith(href) and href != '/' %}active{% endif %}" href="{{ href }}">
+                            {{ t('nav.' ~ module.key, module.title) }}
+                        </a>
+                    </li>
+                {% endfor %}
+                {% for group in nav_groups %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if group.items|selectattr('key','in',[current_path.strip('/')])|list %}active{% endif %}"
+                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{ t('nav.' ~ group.name|lower, group.name) }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% for module in group.items %}
+                                <li><a class="dropdown-item" href="{{ module_href(module) }}">{{ t('nav.' ~ module.key, module.title) }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+            <ul class="navbar-nav align-items-lg-center gap-lg-1">
+                <li class="nav-item">
+                    <button class="nav-link btn btn-link" type="button" id="themeToggle" title="{{ t('nav.theme', 'Light / dark theme') }}">
+                        <i class="bi bi-moon-stars" id="themeIcon"></i>
+                    </button>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-globe2 me-1"></i>{{ lang|upper }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% for code, name in langs.items() %}
+                            <li><a class="dropdown-item {% if code == lang %}active{% endif %}"
+                                   href="?lang={{ code }}">{{ name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% if settings.login_required or settings.basic_auth %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right me-1"></i>{{ t('nav.logout', 'Logout') }}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container-fluid px-3 px-lg-4 py-4">
+    {% if open_mode %}
+        <div class="alert alert-danger d-flex gap-2 align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div><strong>Authentication is disabled.</strong> Anyone who can reach this panel can run commands
+                as <code>{{ settings.ssh_user if execution_mode is not defined else settings.ssh_user }}</code> on this host.</div>
+        </div>
+    {% elif default_credentials %}
+        <div class="alert alert-warning d-flex gap-2 align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div><strong>Default password in use.</strong> Change it in <code>config.toml</code> — the shipped defaults are public.</div>
+        </div>
+    {% endif %}
+
+    {% for message in flashes %}
+        <div class="alert alert-{{ message.level }} alert-dismissible fade show" role="alert">
+            {{ message.message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer mt-auto py-3">
+    <div class="container-fluid px-3 px-lg-4 d-flex flex-wrap gap-2 justify-content-between align-items-center text-body-secondary small">
+        <span>PiWeb {{ app_version }} · <a href="https://github.com/xiejx/PiWeb" target="_blank" rel="noopener">GitHub</a></span>
+        <a href="https://www.paypal.com/donate/?hosted_button_id=VCWHQPACTXV5N" target="_blank" rel="noopener">
+            <img src="/static/images/Donate-PayPal-green.svg" alt="Donate" height="20">
+        </a>
+    </div>
+</footer>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<script src="/static/vendor/bootstrap.bundle.min.js?v={{ asset_version }}"></script>
+<script src="/static/vendor/htmx.min.js?v={{ asset_version }}"></script>
+<script src="/static/vendor/alpine.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/js/app.js?v={{ asset_version }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

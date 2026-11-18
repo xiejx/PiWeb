@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ t('info.title', 'Runtime information') }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3"><i class="bi bi-info-circle me-1"></i>{{ t('info.title', 'Runtime information') }}</h1>
+<div class="muted-small mb-3">
+    {{ t('info.intro', 'Diagnostics for this installation. This page replaces the old PHP Info page; secrets are only reported as configured or not set.') }}
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-cpu me-1"></i>{{ t('info.runtime', 'Runtime') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    {% for row in runtime %}
+                        <tr>
+                            <th class="text-body-secondary fw-normal" style="width: 40%">{{ t(row.key, row.label) }}</th>
+                            <td class="mono">{{ row.value }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-box-seam me-1"></i>{{ t('info.packages', 'Installed packages') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    {% for package in packages %}
+                        <tr>
+                            <th class="text-body-secondary fw-normal">{{ package.name }}</th>
+                            <td class="mono">{{ package.version }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-folder2-open me-1"></i>{{ t('info.paths', 'Paths and permissions') }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                    <tr>
+                        <th>{{ t('info.path', 'Path') }}</th>
+                        <th>{{ t('info.location', 'Location') }}</th>
+                        <th>{{ t('info.readable', 'Readable') }}</th>
+                        <th>{{ t('info.writable', 'Writable') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in paths %}
+                        <tr>
+                            <td>
+                                {{ t(row.key, row.label) }}
+                                <span class="badge badge-soft-muted ms-1">{{ 'dir' if row.is_dir else ('file' if row.exists else 'missing') }}</span>
+                            </td>
+                            <td class="mono small text-break">{{ row.path }}</td>
+                            <td>
+                                {% if row.readable %}
+                                    <span class="badge badge-soft-success">{{ t('info.yes', 'yes') }}</span>
+                                {% else %}
+                                    <span class="badge badge-soft-danger">{{ t('info.no', 'no') }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.writable %}
+                                    <span class="badge badge-soft-success">{{ t('info.yes', 'yes') }}</span>
+                                {% else %}
+                                    <span class="badge badge-soft-danger">{{ t('info.no', 'no') }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-hdd me-1"></i>{{ t('info.disk', 'Disk usage') }}</div>
+            <div class="card-body">
+                {% if disk %}
+                    <div class="d-flex justify-content-between align-items-baseline mb-1">
+                        <span class="muted-small">{{ t('info.disk_for', 'Filesystem holding the application directory') }}</span>
+                        <span class="fw-semibold">{{ disk.percent }}%</span>
+                    </div>
+                    <div class="progress mb-3" role="progressbar" aria-valuenow="{{ disk.percent }}"
+                         aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar bg-{{ disk.percent|bar_color }}"
+                             style="width: {{ disk.percent }}%"></div>
+                    </div>
+                    <dl class="row mb-0 small">
+                        <dt class="col-4 text-body-secondary fw-normal">{{ t('info.total', 'Total') }}</dt>
+                        <dd class="col-8 mb-1 mono">{{ disk.total }}</dd>
+                        <dt class="col-4 text-body-secondary fw-normal">{{ t('info.used', 'Used') }}</dt>
+                        <dd class="col-8 mb-1 mono">{{ disk.used }}</dd>
+                        <dt class="col-4 text-body-secondary fw-normal">{{ t('info.free', 'Free') }}</dt>
+                        <dd class="col-8 mb-0 mono">{{ disk.free }}</dd>
+                    </dl>
+                {% else %}
+                    <p class="mb-0 text-body-secondary">{{ t('info.disk_na', 'Disk usage is not available.') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-sliders me-1"></i>{{ t('info.config', 'Configuration (redacted)') }}</div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for group in config_groups %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="fw-semibold mb-2">{{ t(group.title_key, group.title) }}</div>
+                    <dl class="row mb-0 small">
+                        {% for row in group.rows %}
+                            <dt class="col-6 text-body-secondary fw-normal">{{ t(row.key, row.label) }}</dt>
+                            <dd class="col-6 mb-1 mono text-break">{{ row.value }}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-grid me-1"></i>{{ t('info.modules', 'Modules') }}</span>
+        <a class="btn btn-sm btn-outline-secondary" href="/modules">{{ t('info.manage', 'Manage modules') }}</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+            <tr>
+                <th>{{ t('info.module', 'Module') }}</th>
+                <th>{{ t('info.group', 'Group') }}</th>
+                <th>{{ t('info.state', 'State') }}</th>
+                <th>{{ t('info.override', 'Override') }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for module in modules %}
+                <tr>
+                    <td>{{ module.title }} <span class="muted-small mono">({{ module.key }})</span></td>
+                    <td>{{ module.group or t('info.general', 'General') }}</td>
+                    <td>
+                        {% if module.enabled %}
+                            <span class="badge badge-soft-success">{{ t('info.on', 'on') }}</span>
+                        {% else %}
+                            <span class="badge badge-soft-muted">{{ t('info.off', 'off') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if module.overridden %}
+                            <span class="badge badge-soft-warning">{{ t('info.yes', 'yes') }}</span>
+                        {% else %}
+                            <span class="text-body-secondary">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

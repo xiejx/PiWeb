@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-bs-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Sign in — PiWeb</title>
+    <link rel="icon" href="/static/images/raspberry.png" type="image/png">
+    <link href="/static/vendor/bootstrap.min.css?v={{ asset_version }}" rel="stylesheet">
+    <link href="/static/vendor/bootstrap-icons.min.css?v={{ asset_version }}" rel="stylesheet">
+    <link href="/static/css/app.css?v={{ asset_version }}" rel="stylesheet">
+    <script>
+        try {
+            const saved = localStorage.getItem('piweb-theme');
+            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+        } catch (e) {}
+    </script>
+</head>
+<body>
+<div class="login-shell">
+    <div class="card login-card border-0 shadow-lg">
+        <div class="card-body p-4 p-sm-5">
+            <div class="text-center mb-4">
+                <img src="/static/images/raspberry.png" alt="PiWeb" width="56" height="56" class="mb-2">
+                <h1 class="h4 fw-semibold mb-1">PiWeb</h1>
+                <p class="text-body-secondary small mb-0">Raspberry Pi control panel</p>
+            </div>
+
+            {% if action == 'incorrect_login' %}
+                <div class="alert alert-danger py-2 small">Incorrect username, password or two-factor code.</div>
+            {% elif action == 'locked' %}
+                <div class="alert alert-warning py-2 small">
+                    Too many failed attempts. Try again in about {{ ((wait or 60) / 60)|round(0, 'ceil')|int }} minute(s).
+                </div>
+            {% elif just_expired %}
+                <div class="alert alert-info py-2 small">Your session expired. Please sign in again.</div>
+            {% endif %}
+
+            <form method="post" action="/login" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="mb-3">
+                    <label class="form-label" for="username">Username</label>
+                    <input class="form-control" id="username" name="username" autocomplete="username" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password</label>
+                    <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+                </div>
+                {% if totp_enabled %}
+                    <div class="mb-3">
+                        <label class="form-label" for="totp">Two-factor code</label>
+                        <input class="form-control" id="totp" name="totp" inputmode="numeric" maxlength="7"
+                               placeholder="123456" autocomplete="one-time-code">
+                    </div>
+                {% endif %}
+                <button class="btn btn-primary w-100 py-2" type="submit">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Sign in
+                </button>
+            </form>
+
+            <div class="d-flex justify-content-between align-items-center mt-4 small text-body-secondary">
+                <span>{{ settings.login_user }}</span>
+                <button type="button" class="btn btn-link btn-sm p-0" id="themeToggle">Toggle theme</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="/static/vendor/bootstrap.bundle.min.js?v={{ asset_version }}"></script>
+<script src="/static/js/app.js?v={{ asset_version }}"></script>
+</body>
+</html>
