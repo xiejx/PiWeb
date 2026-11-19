@@ -1,5 +1,7 @@
+{# Actions submit the full unit name (dbus.socket, never dbus): systemctl would
+   otherwise resolve a bare name to the .service unit and touch the wrong thing. #}
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3" role="group"
-     aria-label="{{ t('svc.filters.label', 'Filter services by state') }}">
+     aria-label="{{ t('svc.filters.label', 'Filter units by state') }}">
     {% for flt in filters %}
         <input type="radio" class="btn-check" name="state" id="svc-state-{{ flt.key }}"
                value="{{ flt.key }}" autocomplete="off" {% if state == flt.key %}checked{% endif %}>
@@ -10,7 +12,20 @@
     <span class="ms-auto muted-small">{{ t('svc.total', 'Total') }}: {{ total }}</span>
 </div>
 
-<div class="card">
+{% for section in sections %}
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold">
+            <i class="bi bi-{{ section.icon }} me-1"></i>{{ t(section.i18n, section.label) }}
+        </span>
+        <span class="muted-small">
+            {% if section.shown != section.total %}
+                {{ t('svc.showing', 'Showing') }} {{ section.shown }} / {{ section.total }}
+            {% else %}
+                {{ section.total }} {{ t('svc.unit_suffix', 'units') }}
+            {% endif %}
+        </span>
+    </div>
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0">
             <thead>
@@ -23,7 +38,7 @@
                 </tr>
             </thead>
             <tbody>
-            {% for r in rows %}
+            {% for r in section.rows %}
                 <tr>
                     <td class="text-nowrap">
                         <span class="badge text-bg-{{ r.tone }}">{{ r.active }}</span>
@@ -41,9 +56,9 @@
                     <td class="d-none d-md-table-cell">
                         {% if r.file_state in ['enabled', 'disabled'] %}
                             {% set toggle = 'disable' if r.file_state == 'enabled' else 'enable' %}
-                            <button type="submit" form="svcAction-{{ toggle }}" name="sname" value="{{ r.name }}"
+                            <button type="submit" form="svcAction-{{ toggle }}" name="sname" value="{{ r.unit }}"
                                     class="btn btn-link btn-sm p-0 text-decoration-none align-baseline"
-                                    data-confirm="{{ t('svc.confirm_boot', 'Change whether this service starts at boot?') }}">
+                                    data-confirm="{{ t('svc.confirm_boot', 'Change whether this unit starts at boot?') }}">
                                 <span class="badge {{ 'text-bg-success' if r.file_state == 'enabled' else 'border text-body-secondary' }}">{{ r.file_state }}</span>
                             </button>
                         {% else %}
@@ -55,26 +70,20 @@
                         {% if r.load != 'loaded' %}
                             <span class="small text-body-secondary" title="{{ t('svc.not_loaded_hint', 'unit file is missing or masked') }}">—</span>
                         {% elif r.active == 'active' %}
-                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.name }}"
+                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.unit }}"
                                     class="btn btn-sm btn-outline-secondary"
                                     data-confirm="{{ t('svc.restart', 'Restart') }} {{ r.name }}?">{{ t('svc.restart', 'Restart') }}</button>
-                            <button type="submit" form="svcAction-stop" name="sname" value="{{ r.name }}"
+                            <button type="submit" form="svcAction-stop" name="sname" value="{{ r.unit }}"
                                     class="btn btn-sm btn-outline-danger"
                                     data-confirm="{{ t('svc.stop', 'Stop') }} {{ r.name }}?">{{ t('svc.stop', 'Stop') }}</button>
                         {% elif r.active == 'failed' %}
-                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.name }}"
+                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.unit }}"
                                     class="btn btn-sm btn-outline-warning"
                                     data-confirm="{{ t('svc.restart', 'Restart') }} {{ r.name }}?">{{ t('svc.restart', 'Restart') }}</button>
                         {% else %}
-                            <button type="submit" form="svcAction-start" name="sname" value="{{ r.name }}"
+                            <button type="submit" form="svcAction-start" name="sname" value="{{ r.unit }}"
                                     class="btn btn-sm btn-outline-success">{{ t('svc.start', 'Start') }}</button>
                         {% endif %}
-                    </td>
-                </tr>
-            {% else %}
-                <tr>
-                    <td colspan="5" class="p-4 text-center text-body-secondary">
-                        {{ t('svc.empty', 'No service matches this filter.') }}
                     </td>
                 </tr>
             {% endfor %}
@@ -82,3 +91,10 @@
         </table>
     </div>
 </div>
+{% else %}
+<div class="card">
+    <div class="card-body p-4 text-center text-body-secondary">
+        {{ t('svc.empty', 'No unit matches this filter.') }}
+    </div>
+</div>
+{% endfor %}
