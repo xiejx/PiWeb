@@ -171,17 +171,22 @@ def scan(executor: Executor) -> list[dict[str, Any]]:
     networks: dict[str, dict[str, Any]] = {}
 
     if name == "nmcli":
-        result = executor.run(
-            "nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan yes "
-            "2>/dev/null",
-            timeout=45,
+        # `list --rescan yes` still exits 0 when NetworkManager refuses the
+        # scan ("not authorized"); it just prints the stale BSS cache, which
+        # often contains nothing but the connected network. Probe the rescan
+        # separately to learn whether escalation is required, then let the
+        # blocking list wait for the scan to finish instead of sleeping.
+        rescan = executor.run("nmcli device wifi rescan 2>/dev/null", timeout=25)
+        command = (
+            "nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list "
+            "--rescan yes 2>/dev/null"
         )
-        if not result.ok and not result.stdout.strip():
-            result = executor.run(
-                "sudo -n nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY device wifi list "
-                "--rescan yes 2>/dev/null",
-                timeout=45,
-            )
+        if rescan.ok:
+            result = executor.run(command, timeout=45)
+        else:
+            result = executor.run(f"sudo -n {command}", timeout=45)
+            if not result.stdout.strip():
+                result = executor.run(command, timeout=45)
         lines = result.stdout.splitlines()
         for line in lines:
             parts = _split_fields(line)
