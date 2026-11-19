@@ -130,10 +130,10 @@ def delete_job(executor: Executor, index: int) -> tuple[bool, str]:
 def scripts_with_schedules(executor: Executor, script_names: list[str]) -> dict[str, str]:
     current = read_user_crontab(executor)
     found: dict[str, str] = {}
-    # Accept the legacy "# gumcp-script:" marker so pre-rename schedules stay
-    # visible; new/updated entries always use the PiWeb marker.
-    markers = (f"# piweb-script:{name}", f"# gumcp-script:{name}")
     for name in script_names:
+        # Accept the legacy "# gumcp-script:" marker so pre-rename schedules stay
+        # visible; new/updated entries always use the PiWeb marker.
+        markers = (f"# piweb-script:{name}", f"# gumcp-script:{name}")
         for line in current.splitlines():
             for marker in markers:
                 if line.rstrip().endswith(marker):

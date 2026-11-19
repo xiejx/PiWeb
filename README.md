@@ -233,6 +233,13 @@ cp config.example.toml config.toml
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+运行测试（pytest 仅测试时需要，未列入 `requirements.txt`）：
+
+```bash
+pip install pytest
+python -m pytest tests -q
+```
+
 CodeMirror 6 的打包文件已预构建在 `app/static/vendor/codemirror.bundle.js`。修改 `.frontend-build/editor-entry.js` 后可按如下方式重新构建：
 
 ```bash
