@@ -76,6 +76,7 @@ class Executor:
                 shell=True,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 cwd=cwd,
                 env=env,

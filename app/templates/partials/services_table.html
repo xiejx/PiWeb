@@ -1,44 +1,84 @@
-{% macro service_card(title, icon, tone, services, action, button_tone, button_icon, button_label) %}
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi {{ icon }} me-1 text-{{ tone }}"></i>{{ title }}</span>
-            <span class="badge text-bg-{{ tone }}">{{ services|length }}</span>
-        </div>
-        <div class="card-body p-0">
-            {% if services %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0 align-middle">
-                        <tbody>
-                        {% for service in services %}
-                            <tr>
-                                <td class="mono">{{ service }}</td>
-                                <td class="text-end" style="width: 150px">
-                                    {% if action %}
-                                        <form method="post" action="/services/action" class="d-inline">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                            <input type="hidden" name="sname" value="{{ service }}">
-                                            <input type="hidden" name="action" value="{{ action }}">
-                                            <button class="btn btn-sm btn-outline-{{ button_tone }}" type="submit"
-                                                    data-confirm="{{ button_label }} {{ service }}?">
-                                                {{ button_label }}
-                                            </button>
-                                        </form>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="text-body-secondary p-3 mb-0">{{ t('svc.none', 'None.') }}</p>
-            {% endif %}
-        </div>
-    </div>
-{% endmacro %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3" role="group"
+     aria-label="{{ t('svc.filters.label', 'Filter services by state') }}">
+    {% for flt in filters %}
+        <input type="radio" class="btn-check" name="state" id="svc-state-{{ flt.key }}"
+               value="{{ flt.key }}" autocomplete="off" {% if state == flt.key %}checked{% endif %}>
+        <label class="btn btn-sm btn-outline-{{ flt.tone }}" for="svc-state-{{ flt.key }}">
+            {{ t(flt.i18n, flt.label) }} ({{ counts[flt.key] }})
+        </label>
+    {% endfor %}
+    <span class="ms-auto muted-small">{{ t('svc.total', 'Total') }}: {{ total }}</span>
+</div>
 
-{{ service_card(t('svc.active', 'Active services'), 'bi-check-circle-fill', 'success', lists.active, 'stop', 'danger', 'bi-stop-fill', t('svc.stop', 'Stop')) }}
-{{ service_card(t('svc.inactive', 'Inactive services'), 'bi-dash-circle', 'secondary', lists.inactive, 'start', 'success', 'bi-play-fill', t('svc.start', 'Start')) }}
-{% if lists.unknown %}
-    {{ service_card(t('svc.unknown', 'Unknown status'), 'bi-question-circle', 'warning', lists.unknown, '', '', '', '') }}
-{% endif %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr class="small text-body-secondary">
+                    <th style="width: 145px">{{ t('svc.col_state', 'State') }}</th>
+                    <th style="width: 22%">{{ t('svc.col_unit', 'Unit') }}</th>
+                    <th class="d-none d-lg-table-cell">{{ t('svc.col_desc', 'Description') }}</th>
+                    <th class="d-none d-md-table-cell" style="width: 110px">{{ t('svc.col_boot', 'At boot') }}</th>
+                    <th class="text-end" style="width: 170px">{{ t('svc.col_actions', 'Actions') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+                <tr>
+                    <td class="text-nowrap">
+                        <span class="badge text-bg-{{ r.tone }}">{{ r.active }}</span>
+                        <span class="small text-body-secondary ms-1">{{ r.sub }}</span>
+                    </td>
+                    <td class="mono">
+                        {{ r.name }}
+                        {% if r.load != 'loaded' %}
+                            <span class="badge text-bg-warning ms-1">{{ r.load }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-lg-table-cell small text-body-secondary">
+                        <div class="text-truncate" style="max-width: 48ch" title="{{ r.description }}">{{ r.description }}</div>
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        {% if r.file_state in ['enabled', 'disabled'] %}
+                            {% set toggle = 'disable' if r.file_state == 'enabled' else 'enable' %}
+                            <button type="submit" form="svcAction-{{ toggle }}" name="sname" value="{{ r.name }}"
+                                    class="btn btn-link btn-sm p-0 text-decoration-none align-baseline"
+                                    data-confirm="{{ t('svc.confirm_boot', 'Change whether this service starts at boot?') }}">
+                                <span class="badge {{ 'text-bg-success' if r.file_state == 'enabled' else 'border text-body-secondary' }}">{{ r.file_state }}</span>
+                            </button>
+                        {% else %}
+                            <span class="badge {{ 'text-bg-warning' if r.file_state == 'masked' else 'border text-body-secondary' }}"
+                                  title="{{ t('svc.boot_static_hint', 'Managed by other units — no enable/disable switch.') }}">{{ r.file_state or '—' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        {% if r.load != 'loaded' %}
+                            <span class="small text-body-secondary" title="{{ t('svc.not_loaded_hint', 'unit file is missing or masked') }}">—</span>
+                        {% elif r.active == 'active' %}
+                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.name }}"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    data-confirm="{{ t('svc.restart', 'Restart') }} {{ r.name }}?">{{ t('svc.restart', 'Restart') }}</button>
+                            <button type="submit" form="svcAction-stop" name="sname" value="{{ r.name }}"
+                                    class="btn btn-sm btn-outline-danger"
+                                    data-confirm="{{ t('svc.stop', 'Stop') }} {{ r.name }}?">{{ t('svc.stop', 'Stop') }}</button>
+                        {% elif r.active == 'failed' %}
+                            <button type="submit" form="svcAction-restart" name="sname" value="{{ r.name }}"
+                                    class="btn btn-sm btn-outline-warning"
+                                    data-confirm="{{ t('svc.restart', 'Restart') }} {{ r.name }}?">{{ t('svc.restart', 'Restart') }}</button>
+                        {% else %}
+                            <button type="submit" form="svcAction-start" name="sname" value="{{ r.name }}"
+                                    class="btn btn-sm btn-outline-success">{{ t('svc.start', 'Start') }}</button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="5" class="p-4 text-center text-body-secondary">
+                        {{ t('svc.empty', 'No service matches this filter.') }}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

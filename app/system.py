@@ -461,7 +461,9 @@ def list_services(executor: Executor) -> list[dict[str, str]]:
     )
     services = []
     for line in result.stdout.splitlines():
-        line = line.strip().lstrip("●").strip()
+        # --plain omits the state bullets on current systemd, but older builds
+        # still emit them (● active, × failed, ○ not-found).
+        line = line.strip().lstrip("●×○*").strip()
         parts = line.split(None, 4)
         if len(parts) < 4:
             continue
@@ -478,6 +480,28 @@ def list_services(executor: Executor) -> list[dict[str, str]]:
             }
         )
     return services
+
+
+def list_unit_files(executor: Executor) -> dict[str, dict[str, str]]:
+    """Map unit name -> {state, preset} from `systemctl list-unit-files`.
+
+    `list-units` reports the runtime state but not whether a unit is started at
+    boot; this answers that (enabled / disabled / static / masked).
+    """
+    result = executor.run(
+        "systemctl list-unit-files --type=service --no-legend --no-pager --plain 2>/dev/null",
+        timeout=15,
+    )
+    states: dict[str, dict[str, str]] = {}
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        unit, state = parts[0], parts[1]
+        if not unit.endswith(".service"):
+            continue  # skips the "N unit files listed." trailer
+        states[unit] = {"state": state, "preset": parts[2] if len(parts) > 2 else ""}
+    return states
 
 
 # ── Processes ────────────────────────────────────────────────────────────────

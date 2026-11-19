@@ -3,16 +3,47 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
-        <h1 class="h3 mb-1">{{ t('svc.title', 'Services') }}</h1>
-        <div class="muted-small">{{ t('svc.subtitle', 'Start or stop system services. Only service names are accepted.') }}</div>
+        <h1 class="h3 mb-1">{{ t('svc.title', 'System Services') }}</h1>
+        <div class="muted-small">{{ t('svc.subtitle', 'Every service unit systemd knows about — runtime state, boot behaviour, and the matching systemctl action.') }}</div>
     </div>
-    <button class="btn btn-outline-secondary btn-sm"
-            hx-get="/partials/services" hx-target="#servicesArea" hx-swap="innerHTML">
+    <button class="btn btn-outline-secondary btn-sm" type="button"
+            hx-get="/partials/services" hx-target="#servicesArea" hx-include="#svcFilters">
         <i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}
     </button>
 </div>
 
-<div id="servicesArea" hx-get="/partials/services" hx-trigger="every 15s" hx-swap="innerHTML">
-    {% include "partials/services_table.html" %}
-</div>
+<form id="svcFilters"
+      hx-get="/partials/services" hx-target="#servicesArea" hx-swap="innerHTML" hx-include="this"
+      hx-trigger="change from:#servicesArea, keyup changed delay:300ms from:#svcSearch, every 60s">
+    <div class="row g-2 align-items-center mb-3">
+        <div class="col-12 col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input class="form-control mono" type="search" id="svcSearch" name="q" value="{{ q }}"
+                       placeholder="{{ t('svc.filter_placeholder', 'Filter by unit name or description') }}"
+                       autocomplete="off">
+            </div>
+        </div>
+        <div class="col-auto">
+            <a class="btn btn-sm btn-outline-secondary" href="/services">
+                <i class="bi bi-x-lg me-1"></i>{{ t('svc.reset', 'Reset') }}
+            </a>
+        </div>
+    </div>
+
+    <div id="servicesArea">
+        {% include "partials/services_table.html" %}
+    </div>
+</form>
+
+{# Action forms sit outside the filter form (nested <form> is invalid HTML);
+   row buttons are bound to them by id through the HTML form attribute. #}
+{% for act in ['start', 'stop', 'restart', 'enable', 'disable'] %}
+    <form id="svcAction-{{ act }}" method="post" action="/services/action">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="{{ act }}">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="state" value="{{ state }}">
+    </form>
+{% endfor %}
 {% endblock %}
