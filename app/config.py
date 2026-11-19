@@ -95,7 +95,7 @@ class Settings:
     alert_temp_threshold: int = 75
     alert_disk_threshold: int = 95
     # ui
-    default_lang: str = "en"
+    default_lang: str = "zh"
     dashboard_services: list[str] = field(
         default_factory=lambda: ["ssh", "nginx", "cron"]
     )
@@ -243,7 +243,7 @@ def load_settings(path: str | os.PathLike[str] | None = None) -> Settings:
         alert_telegram_chat=_pick(alerts, "telegram_chat", ""),
         alert_temp_threshold=_pick(alerts, "temp_threshold", 75),
         alert_disk_threshold=_pick(alerts, "disk_threshold", 95),
-        default_lang=_pick(ui, "lang", "en"),
+        default_lang=_pick(ui, "lang", "zh"),
         dashboard_services=_pick(ui, "dashboard_services", ["ssh", "nginx", "cron"]),
         api_allow_ips=_pick(ui, "api_allow_ips", []),
         debug=_pick(ui, "debug", False),

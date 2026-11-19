@@ -19,6 +19,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .config import Settings
+from .i18n import SUPPORTED_LANGS
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 PUBLIC_PREFIXES = (
@@ -454,7 +455,7 @@ class AuthGateMiddleware:
 
         # Language switch (?lang=xx) persists to session and a long-lived cookie.
         lang = request.query_params.get("lang")
-        if lang in {"en", "de", "uk", "es", "fr"}:
+        if lang in SUPPORTED_LANGS:
             session["lang"] = lang
             scope.setdefault("state", {})["piweb_set_lang_cookie"] = lang
 

@@ -8,6 +8,7 @@ from fastapi import Request
 from .config import I18N_DIR, Settings
 
 SUPPORTED_LANGS: dict[str, str] = {
+    "zh": "简体中文",
     "en": "English",
     "de": "Deutsch",
     "uk": "Українська",

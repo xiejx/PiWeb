@@ -65,7 +65,7 @@ temp_threshold = 75
 disk_threshold = 95
 
 [ui]
-lang = "en"                          # en, de, uk, es, fr
+lang = "zh"                          # zh (default), en, de, uk, es, fr
 dashboard_services = ["ssh", "nginx", "cron"]
 api_allow_ips = []                   # e.g. ["192.168.1.50", "192.168.1.0/24"]
 debug = false
