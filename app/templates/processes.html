@@ -21,7 +21,7 @@
             <div class="col text-md-end muted-small" x-text="q ? '{{ t('common.filter_active', 'Filtering list') }}' : ''"></div>
         </div>
     </div>
-    <div id="processArea" hx-get="/partials/processes" hx-trigger="every 20s" hx-swap="innerHTML">
+    <div id="processArea">
         {% include "partials/processes_table.html" %}
     </div>
 </div>

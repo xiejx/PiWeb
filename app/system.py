@@ -15,6 +15,21 @@ from .config import Settings
 from .executor import Executor, format_bytes, format_duration, read_text
 
 
+# ARM CPU part values reported by /proc/cpuinfo (implementer 0x41 = ARM Ltd.).
+# Raspberry Pi OS exposes these on ARM kernels but has no generic "model name"
+# field; the "Model" line describes the board, not the CPU core.
+_ARM_CPU_PARTS = {
+    "0xb76": "ARM1176JZF-S",
+    "0xc07": "ARM Cortex-A7",
+    "0xd03": "ARM Cortex-A53",
+    "0xd07": "ARM Cortex-A57",
+    "0xd08": "ARM Cortex-A72",
+    "0xd09": "ARM Cortex-A73",
+    "0xd0a": "ARM Cortex-A75",
+    "0xd0b": "ARM Cortex-A76",
+}
+
+
 # ── CPU ───────────────────────────────────────────────────────────────────────
 
 def _cpu_sample() -> tuple[int, int]:
@@ -69,12 +84,33 @@ def cpu_count() -> int:
     return os.cpu_count() or 1
 
 
+def _cpuinfo_field(text: str, key: str) -> str:
+    match = re.search(rf"^{re.escape(key)}\s*:\s*(.+)$", text, re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+
 def cpu_model() -> str:
+    """Return the CPU core name, never the Raspberry Pi board model.
+
+    Raspberry Pi OS puts a ``Model`` line in /proc/cpuinfo (e.g.
+    "Raspberry Pi 4 Model B Rev 1.4") but no ``model name``/``Hardware`` line.
+    The old implementation matched ``Model`` first and reported the board as
+    the CPU. Resolve ARM cores from CPU implementer/part instead.
+    """
     text = read_text("/proc/cpuinfo")
-    for key in ("Model", "model name", "Hardware"):
-        match = re.search(rf"^{key}\s*:\s*(.+)$", text, re.MULTILINE)
-        if match:
-            return match.group(1).strip()
+
+    implementer = _cpuinfo_field(text, "CPU implementer").lower()
+    part = _cpuinfo_field(text, "CPU part").lower()
+    if implementer == "0x41" and part:
+        core = _ARM_CPU_PARTS.get(part)
+        if core:
+            return core
+        return f"ARM CPU part {part}"
+
+    for key in ("model name", "Hardware", "Processor"):
+        value = _cpuinfo_field(text, key)
+        if value:
+            return value
     return platform.processor() or "Unknown"
 
 
