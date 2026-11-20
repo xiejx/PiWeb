@@ -9,7 +9,7 @@ from importlib import metadata
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 from .. import __version__
 from ..config import BASE_DIR, Settings
@@ -227,8 +227,3 @@ def system_info_page(request: Request):
         config_groups=config_groups(settings),
         modules=module_states(settings),
     )
-
-
-@router.get("/phpinfo")
-def phpinfo_redirect():
-    return RedirectResponse("/system-info", status_code=301)

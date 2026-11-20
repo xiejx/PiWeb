@@ -52,7 +52,7 @@ def test_modules_card_offers_a_translated_entry(client: TestClient):
     assert "Manage modules" not in body
 
 
-def test_legacy_phpinfo_path_redirects(client: TestClient):
-    response = client.get("/phpinfo", follow_redirects=False)
-    assert response.status_code == 301
-    assert response.headers["location"] == "/system-info"
+def test_legacy_phpinfo_path_is_gone(client: TestClient):
+    """The 1.x redirect was removed on purpose; keep it from creeping back."""
+
+    assert client.get("/phpinfo", follow_redirects=False).status_code == 404
