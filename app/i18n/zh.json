@@ -367,5 +367,6 @@
   "info.on": "开",
   "info.off": "关",
   "info.yes": "是",
-  "info.no": "否"
+  "info.no": "否",
+  "dash.unmounted": "未挂载"
 }

@@ -213,22 +213,68 @@ def top_partitions(executor: Executor) -> list[dict[str, str]]:
     return rows
 
 
-def block_devices(executor: Executor) -> list[dict[str, str]]:
+PSEUDO_DISK_NAMES = re.compile(r"^(loop|zram|ram|sr|fd)\d+$")
+PSEUDO_DISK_TYPES = {"loop", "ram", "rom"}
+
+
+def _mountpoint(value: Any) -> str:
+    """lsblk reports a list when a device is mounted in several places."""
+    if isinstance(value, list):
+        return str(value[0]).strip() if value else ""
+    return str(value or "").strip()
+
+
+def block_devices(executor: Executor) -> list[dict[str, Any]]:
+    """Physical disks only, for the dashboard storage footer.
+
+    `lsblk -dn` also prints swap loop devices and zram, so a Pi ends up with
+    "loop0 · 2G · loop" next to the real disks. The JSON form lets the pseudo
+    devices be dropped and brings the model, bus and mountpoints along.
+    """
     result = executor.run(
-        "lsblk -dn -o NAME,SIZE,TYPE,MODEL 2>/dev/null", timeout=10
+        "lsblk -J -b -o NAME,SIZE,TYPE,MODEL,TRAN,RM,MOUNTPOINT 2>/dev/null", timeout=10
     )
-    rows = []
-    for line in result.stdout.strip().splitlines():
-        parts = line.split(None, 3)
-        if len(parts) >= 3:
-            rows.append(
-                {
-                    "name": parts[0],
-                    "size": parts[1],
-                    "type": parts[2],
-                    "model": parts[3] if len(parts) > 3 else "",
-                }
-            )
+    if not result.ok or not result.stdout.strip():
+        return []
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for node in payload.get("blockdevices") or []:
+        if not isinstance(node, dict):
+            continue
+        name = str(node.get("name") or "")
+        kind = str(node.get("type") or "")
+        if kind in PSEUDO_DISK_TYPES or PSEUDO_DISK_NAMES.match(name):
+            continue
+        try:
+            size = int(node.get("size") or 0)
+        except (TypeError, ValueError):
+            size = 0
+        mounts = []
+        own = _mountpoint(node.get("mountpoint"))
+        if own:
+            mounts.append(own)
+        for child in node.get("children") or []:
+            if not isinstance(child, dict):
+                continue
+            child_mount = _mountpoint(child.get("mountpoint"))
+            if child_mount:
+                mounts.append(child_mount)
+        mounts.sort(key=lambda path: (path != "/", path))
+        rows.append(
+            {
+                "name": name,
+                "size": format_bytes(size),
+                "type": kind,
+                "model": str(node.get("model") or "").strip(),
+                "transport": str(node.get("tran") or "").strip(),
+                "removable": bool(node.get("rm")),
+                "mounts": mounts,
+            }
+        )
     return rows
 
 

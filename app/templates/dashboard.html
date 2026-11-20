@@ -165,9 +165,13 @@
             </div>
             {% if d.blocks %}
             <div class="card-footer bg-transparent">
-                <div class="muted-small">
+                <div class="d-flex flex-wrap gap-1 muted-small">
                     {% for block in d.blocks %}
-                        <span class="badge text-bg-light mono me-1">{{ block.name }} · {{ block.size }} · {{ block.type }}</span>
+                        <span class="badge text-bg-light mono"
+                              title="{{ block.type }}{% if block.removable %} · removable{% endif %}">
+                            <i class="bi bi-{% if block.transport == 'usb' %}usb-symbol{% elif block.name.startswith('mmc') %}sd-card{% else %}hdd{% endif %} me-1"></i>
+                            {{ block.name }} · {{ block.size }}{% if block.model %} · {{ block.model }}{% endif %}{% if block.mounts %} → {{ block.mounts|join(', ') }}{% else %} · {{ t('dash.unmounted', 'not mounted') }}{% endif %}
+                        </span>
                     {% endfor %}
                 </div>
             </div>

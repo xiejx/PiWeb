@@ -367,5 +367,6 @@
   "info.on": "on",
   "info.off": "off",
   "info.yes": "yes",
-  "info.no": "no"
+  "info.no": "no",
+  "dash.unmounted": "not mounted"
 }
