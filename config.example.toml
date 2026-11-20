@@ -126,7 +126,7 @@ enabled = true
 
 [modules.docker]
 title = "Docker"
-enabled = false
+enabled = true
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 # Only used when the Docker module is enabled. PiWeb shells out to the docker
