@@ -196,6 +196,18 @@ log_max_lines = 2000
 
 注意：能打开这个面板就等于能在主机上执行 `docker`，而 `docker` 等价于 root。危险操作（删除、`down`、`prune`）都会二次确认并写入 `command_logs/auth.log`；Compose 文件在本模块内**只读**，不提供在线编辑。
 
+**编排文件读不出来（`Permission denied`）**：Compose 项目常见于 `~pi/services` 这类目录，而 `/home/pi` 默认是 `0700`。文件本身可能对所有人可读，但 `piweb` 无法穿越家目录，于是查看编排文件和 `compose up/down` 都会失败。两种修法，任选其一：
+
+```bash
+# 1) 只放开穿越权限（推荐，家目录仍不可列目录）
+sudo chmod o+x /home/pi
+
+# 2) 或把栈挪到家目录之外，并把 [docker] compose_dirs 指向新位置
+sudo mv /home/pi/services /srv/services
+```
+
+改动后无需重启 `piweb`。面板会在这种情况下直接提示无权读取哪个文件，而不是抛原始报错。
+
 ### 数据目录
 
 | 路径                     | 内容                                       |

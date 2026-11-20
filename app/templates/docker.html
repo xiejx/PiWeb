@@ -418,6 +418,7 @@
         statsUnavailable: {{ t('dock.stats.unavailable', 'CPU and memory counters are not readable on this host.')|tojson }},
         taskRunning: {{ t('dock.task.running', 'Running…')|tojson }},
         taskDone: {{ t('dock.task.done', 'Finished.')|tojson }},
+        composeDenied: {{ t('dock.compose.file_denied', 'PiWeb cannot read this compose file: {path}')|tojson }},
         taskFailed: {{ t('dock.task.failed', 'Failed.')|tojson }},
         selectTarget: {{ t('dock.system.select_target', 'Select at least one target.')|tojson }},
         previewResult: {{ t('dock.system.preview_result', 'Reclaimable')|tojson }},
@@ -879,10 +880,18 @@
                 body: { project: project.name, act: act }
             });
             if (data.ok) watchTask(data.id, data.label);
-            else api.toast(data.error || 'Action failed', 'error');
+            else api.toast(describeFailure(data, 'Action failed'), 'error');
         } catch (err) {
-            api.toast(err.message || 'Action failed', 'error');
+            const payload = err.payload || {};
+            api.toast(describeFailure(payload, err.message || 'Action failed'), 'error');
         }
+    }
+
+    function describeFailure(data, fallback) {
+        if (data && data.reason === 'denied') {
+            return T.composeDenied.replace('{path}', data.path || '');
+        }
+        return (data && data.error) || fallback;
     }
 
     async function openComposeFile(project) {
@@ -891,9 +900,11 @@
         bootstrap.Modal.getOrCreateInstance($('composeFileModal')).show();
         try {
             const data = await api.api('/ajax/docker/compose/' + encodeURIComponent(project.name) + '/file');
-            $('composeFileBody').textContent = data.ok ? data.content : (data.error || T.failed);
+            $('composeFileBody').textContent = data.ok
+                ? data.content
+                : describeFailure(data, T.failed);
         } catch (err) {
-            $('composeFileBody').textContent = err.message || T.failed;
+            $('composeFileBody').textContent = describeFailure(err.payload || {}, err.message || T.failed);
         }
     }
 

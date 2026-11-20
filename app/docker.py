@@ -15,6 +15,7 @@ Two rules shape the implementation:
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import re
 import shlex
@@ -712,6 +713,28 @@ class Docker:
                 return True
         return False
 
+    def unreadable(self, path: str) -> bool:
+        """True when the PiWeb user cannot read ``path`` in local mode.
+
+        Compose files often live under a 0700 home directory, so the file itself
+        may be world-readable while a parent directory blocks traversal.
+        """
+        if getattr(self.executor, "mode", "local") == "ssh":
+            return False
+        target = Path(path)
+        try:
+            if target.is_dir():
+                with os.scandir(path) as entries:
+                    next(entries, None)
+            else:
+                with open(path, "rb") as handle:
+                    handle.read(1)
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+        return False
+
     def compose_argv(self, project: str, action: str, remove_volumes: bool = False) -> tuple[list[str], str]:
         """Return (argv, error). The argv excludes the ``docker`` prefix."""
         if action not in COMPOSE_ACTIONS:
@@ -727,8 +750,12 @@ class Docker:
         for file_path in [part.strip() for part in files.split(",") if part.strip()]:
             if not self.path_allowed(file_path):
                 return [], "Compose file is outside the allowed directories"
+            if self.unreadable(file_path):
+                return [], f"EACCES: {file_path}"
         if not self.path_allowed(workdir):
             return [], "Compose directory is outside the allowed directories"
+        if self.unreadable(workdir):
+            return [], f"EACCES: {workdir}"
 
         args = ["compose", "--project-directory", workdir]
         for file_path in [part.strip() for part in files.split(",") if part.strip()]:
@@ -756,7 +783,10 @@ class Docker:
             return {"ok": False, "error": "Compose file is outside the allowed directories"}
         result = self.executor.run_argv(["cat", path], timeout=15)
         if not result.ok:
-            return {"ok": False, "error": result.output or "Cannot read compose file"}
+            payload = {"ok": False, "path": path, "error": result.output or "Cannot read compose file"}
+            if self.unreadable(path) or "permission denied" in (result.output or "").lower():
+                payload["reason"] = "denied"
+            return payload
         content = result.stdout
         truncated = False
         if len(content) > 200_000:

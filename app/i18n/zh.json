@@ -341,5 +341,6 @@
   "dock.task.running": "执行中…",
   "dock.task.done": "已完成。",
   "dock.task.failed": "失败。",
-  "dock.stats.unavailable": "这台主机读不到 CPU 与内存计数。"
+  "dock.stats.unavailable": "这台主机读不到 CPU 与内存计数。",
+  "dock.compose.file_denied": "PiWeb 无权读取该编排文件：{path}。上级目录不允许其它用户穿越——可在主机上对上级目录执行“sudo chmod o+x <上级目录>”，或把编排文件放到 0700 家目录之外。"
 }

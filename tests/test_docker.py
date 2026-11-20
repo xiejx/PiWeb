@@ -427,6 +427,39 @@ def test_compose_file_is_read_through_the_executor(tmp_path: Path):
     assert "cloudreve" in data["content"]
 
 
+def test_compose_file_marks_permission_denied(tmp_path: Path):
+    """A 0700 home directory blocks traversal even when the file is readable."""
+
+    class DeniedStub(Stub):
+        def run_argv(self, argv, timeout: float = 30.0, input: str | None = None):
+            if argv[0] == "cat":
+                return CommandResult(
+                    returncode=1,
+                    stderr="cat: /home/pi/services/docker-compose.yml: Permission denied",
+                )
+            return super().run_argv(argv, timeout, input)
+
+    data = Docker(make_settings(tmp_path), DeniedStub()).compose_file("services")
+    assert data["ok"] is False
+    assert data["reason"] == "denied"
+    assert data["path"] == "/home/pi/services/docker-compose.yml"
+
+
+def test_compose_argv_refuses_unreadable_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    client = Docker(make_settings(tmp_path), Stub())
+    monkeypatch.setattr(Docker, "unreadable", lambda self, path: True)
+    args, error = client.compose_argv("services", "up")
+    assert args == []
+    assert error.startswith("EACCES:")
+    assert "/home/pi/services/docker-compose.yml" in error
+
+
+def test_unreadable_returns_false_for_missing_paths(tmp_path: Path):
+    client = Docker(make_settings(tmp_path), Stub())
+    assert client.unreadable(str(tmp_path / "nope.yml")) is False
+    assert client.unreadable(str(tmp_path)) is False
+
+
 # ── tasks ────────────────────────────────────────────────────────────────────
 
 
@@ -593,6 +626,24 @@ def test_compose_action_starts_a_background_task(client: TestClient):
     assert payload["id"]
     assert "docker compose" in client.stub.background[-1]
     assert "restart" in client.stub.background[-1]
+
+
+def test_compose_action_reports_permission_denied(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    from app.docker import Docker
+
+    monkeypatch.setattr(Docker, "unreadable", lambda self, path: True)
+    response = client.post(
+        "/ajax/docker/compose/action",
+        json={"project": "services", "act": "restart"},
+        headers={"X-CSRF-Token": csrf(client)},
+    )
+    assert response.status_code == 403
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["reason"] == "denied"
+    assert payload["path"] == "/home/pi/services/docker-compose.yml"
 
 
 def test_compose_action_is_rejected_when_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

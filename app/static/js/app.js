@@ -32,7 +32,10 @@
         const payload = contentType.includes("application/json") ? await response.json() : await response.text();
         if (!response.ok) {
             const message = (payload && payload.detail) || (payload && payload.error) || response.statusText;
-            throw new Error(message || "Request failed");
+            const failure = new Error(message || "Request failed");
+            failure.status = response.status;
+            failure.payload = payload;
+            throw failure;
         }
         return payload;
     }

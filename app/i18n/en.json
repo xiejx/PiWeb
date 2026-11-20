@@ -341,5 +341,6 @@
   "dock.task.running": "Running…",
   "dock.task.done": "Finished.",
   "dock.task.failed": "Failed.",
-  "dock.stats.unavailable": "CPU and memory counters are not readable on this host."
+  "dock.stats.unavailable": "CPU and memory counters are not readable on this host.",
+  "dock.compose.file_denied": "PiWeb cannot read this compose file: {path}. A parent directory blocks other users — run “sudo chmod o+x <parent dir>” on the host, or keep the stack outside a 0700 home directory."
 }

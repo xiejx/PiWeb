@@ -197,7 +197,14 @@ def docker_compose_file(request: Request, project: str):
         return _failure("Invalid project name")
     data = docker.compose_file(project)
     if not data.get("ok"):
-        return JSONResponse({"ok": False, "error": data.get("error", "Cannot read file")})
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": data.get("error", "Cannot read file"),
+                "reason": data.get("reason", ""),
+                "path": data.get("path", ""),
+            }
+        )
     return JSONResponse(data)
 
 
@@ -391,6 +398,16 @@ async def docker_compose_action(request: Request):
         project, act, remove_volumes=bool(payload.get("remove_volumes"))
     )
     if error:
+        if error.startswith("EACCES:"):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": error,
+                    "reason": "denied",
+                    "path": error.split(":", 1)[1].strip(),
+                },
+                status_code=403,
+            )
         return _failure(error)
     _audit(request, settings, f"compose {act} {project}")
     return JSONResponse(
