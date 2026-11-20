@@ -755,5 +755,21 @@
   "tehy.sensor_s4": "s4（仅温度）：",
   "tehy.sensor_s5": "s5（温度 + 湿度 + 气压）：",
   "tehy.note1": "未发送 bug_key 时，sensor 的值会被当作 TeHyBug 密钥。",
-  "tehy.note2": "建议在路由器里为树莓派设置静态 IP，以保持该地址不变。"
+  "tehy.note2": "建议在路由器里为树莓派设置静态 IP，以保持该地址不变。",
+  "confirm.title": "请确认",
+  "confirm.ok": "确认",
+  "act.confirm_delete_log": "删除日志 {name}？",
+  "check.confirm_totp_off": "关闭两步验证？",
+  "cron.confirm_remove": "删除这条定时任务？",
+  "tehy.delete_confirm": "删除这个 TeHyBug 及其全部数据？",
+  "rpi.confirm_enable": "启用 {iface}？",
+  "rpi.confirm_disable": "禁用 {iface}？",
+  "rpi.boot_overwrite": "即将覆盖：",
+  "rpi.boot_reboot_note": "大部分改动在重启后生效。",
+  "rpi.boot_save_confirm": "现在保存该文件？",
+  "rpi.unmount_confirm": "卸载 {device}？",
+  "rpi.unmount_warning": "请确认没有进程正在使用其中的文件。",
+  "wifi.confirm_disconnect": "断开当前的 Wi-Fi 连接？",
+  "rpi.boot_confirm_warning": "修改启动文件可能导致树莓派无法启动。",
+  "rpi.boot_confirm_backup": "会先写入备份（{name}.piweb.bak）。"
 }

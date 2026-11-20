@@ -94,7 +94,7 @@
                         <i class="bi bi-gear"></i>
                     </button>
                     <form method="post" action="/modules/tehybug/delete" class="d-inline"
-                          onsubmit="return confirm('Delete this TeHyBug and all of its data?');">
+                          data-confirm="{{ t('tehy.delete_confirm', 'Delete this TeHyBug and all of its data?') }}">
                         <input type="hidden" name="bug_id" value="{{ bug.bug_id }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ t('tehy.delete', 'Delete') }}">

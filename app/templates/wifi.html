@@ -177,7 +177,7 @@
     }
 
     async function disconnectWifi() {
-        if (!confirm('Disconnect the current Wi-Fi network?')) return;
+        if (!(await PiWeb.confirm({{ t('wifi.confirm_disconnect', 'Disconnect the current Wi-Fi network?')|tojson }}))) return;
         try {
             const data = await PiWeb.api('/ajax/wifi/disconnect', { method: 'POST' });
             PiWeb.toast(data.message || 'Disconnected.');

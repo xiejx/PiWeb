@@ -204,7 +204,7 @@
 
     async function deleteLog(button, index) {
         const name = button.dataset.log;
-        if (!confirm('Delete log "' + name + '"?')) return;
+        if (!(await PiWeb.confirm({{ t('act.confirm_delete_log', 'Delete the log {name}?')|tojson }}.replace('{name}', name)))) return;
         try {
             await PiWeb.api('/actions/log/delete', { method: 'POST', body: new URLSearchParams({ file: name, csrf_token: PiWeb.csrf }) });
             document.getElementById('log-row-' + index)?.remove();

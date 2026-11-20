@@ -147,8 +147,8 @@
             status(value ? '● Unsaved changes' : 'Saved');
         }
 
-        function confirmDiscard() {
-            return !dirty || confirm('{{ t('scripts.unsaved', 'Discard unsaved changes to this script?') }}');
+        async function confirmDiscard() {
+            return !dirty || (await PiWeb.confirm({{ t('scripts.unsaved', 'Discard unsaved changes to this script?')|tojson }}));
         }
 
         function validName(name) {
@@ -225,7 +225,7 @@
         }
 
         async function openScript(name) {
-            if (!confirmDiscard()) return;
+            if (!(await confirmDiscard())) return;
             try {
                 const data = await PiWeb.api('/scripts/content?name=' + encodeURIComponent(name));
                 current = name;
@@ -242,7 +242,7 @@
         }
 
         async function openExample(name) {
-            if (!confirmDiscard()) return;
+            if (!(await confirmDiscard())) return;
             try {
                 const data = await PiWeb.api('/scripts/content?name=' + encodeURIComponent(name) + '&template=1');
                 current = null;
@@ -257,8 +257,8 @@
             }
         }
 
-        function newScript() {
-            if (!confirmDiscard()) return;
+        async function newScript() {
+            if (!(await confirmDiscard())) return;
             current = null;
             nameInput.value = '';
             editor.setValue('#!/bin/bash\n\n');
@@ -327,7 +327,7 @@
         async function deleteScript() {
             const name = current || nameInput.value.trim();
             if (!name) return;
-            if (!confirm('{{ t('scripts.confirm_delete', 'Delete this script?') }} ' + name)) return;
+            if (!(await PiWeb.confirm({{ t('scripts.confirm_delete', 'Delete this script?')|tojson }} + ' ' + name))) return;
             try {
                 await PiWeb.api('/scripts/delete', { method: 'POST', body: { name: name } });
                 current = null;

@@ -271,7 +271,7 @@
             PiWeb.toast('Enter the current six-digit code first.', 'warning');
             return;
         }
-        if (!confirm('Turn off two-factor authentication?')) return;
+        if (!(await PiWeb.confirm({{ t('check.confirm_totp_off', 'Turn off two-factor authentication?')|tojson }}))) return;
         button.disabled = true;
         try {
             const data = await PiWeb.api('/ajax/check/totp/disable', {

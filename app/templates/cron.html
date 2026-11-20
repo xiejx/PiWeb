@@ -171,7 +171,7 @@
     };
 
     async function cronRemove(index) {
-        if (!confirm('Remove this cron job?')) return;
+        if (!(await PiWeb.confirm({{ t('cron.confirm_remove', 'Remove this cron job?')|tojson }}))) return;
         try {
             await PiWeb.api('/cron/delete', { method: 'POST', body: { index: index } });
             PiWeb.toast("Cron job removed.");

@@ -267,7 +267,9 @@
     }
 
     async function rpiToggle(iface, enable) {
-        if (!confirm((enable ? 'Enable ' : 'Disable ') + iface.toUpperCase() + '?')) return;
+        const question = (enable ? '{{ t('rpi.confirm_enable', 'Enable {iface}?') }}'
+            : '{{ t('rpi.confirm_disable', 'Disable {iface}?') }}').replace('{iface}', iface.toUpperCase());
+        if (!(await PiWeb.confirm(question))) return;
         try {
             const data = await PiWeb.api('/ajax/rpi/interface', {
                 method: 'POST',
@@ -326,13 +328,12 @@
         const path = (pathLabel && pathLabel.textContent.trim())
             || '/boot/firmware/' + fileName;
 
-        if (!confirm(
-            'WARNING — editing boot files can stop the Raspberry Pi from booting.\n\n'
-            + 'You are about to overwrite:\n    ' + path + '\n\n'
-            + 'A backup (' + fileName + '.piweb.bak) will be written first.\n'
-            + 'Most changes take effect after a reboot.\n\n'
-            + 'Save this file now?'
-        )) return;
+        const question = {{ t('rpi.boot_confirm_warning', 'Editing boot files can stop the Raspberry Pi from booting.')|tojson }} + '\n\n'
+            + {{ t('rpi.boot_overwrite', 'You are about to overwrite:')|tojson }} + '\n    ' + path + '\n\n'
+            + {{ t('rpi.boot_confirm_backup', 'A backup ({name}.piweb.bak) will be written first.')|tojson }}.replace('{name}', fileName) + '\n'
+            + {{ t('rpi.boot_reboot_note', 'Most changes take effect after a reboot.')|tojson }} + '\n\n'
+            + {{ t('rpi.boot_save_confirm', 'Save this file now?')|tojson }};
+        if (!(await PiWeb.confirm(question))) return;
 
         const previous = button.innerHTML;
         button.disabled = true;
@@ -519,7 +520,9 @@
     }
 
     async function unmountDisk(device) {
-        if (!confirm('Unmount ' + device + '?\n\nMake sure no process is using files on it.')) return;
+        const question = {{ t('rpi.unmount_confirm', 'Unmount {device}?')|tojson }}.replace('{device}', device) + '\n\n'
+            + {{ t('rpi.unmount_warning', 'Make sure no process is using files on it.')|tojson }};
+        if (!(await PiWeb.confirm(question))) return;
         try {
             const data = await PiWeb.api('/ajax/rpi/disk/unmount', {
                 method: 'POST',

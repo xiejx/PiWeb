@@ -252,7 +252,7 @@
     });
 
     upgradeBtn.addEventListener('click', async function () {
-        if (!window.confirm(tConfirmUpgrade)) return;
+        if (!(await api.confirm(tConfirmUpgrade))) return;
         showError('');
         showOutput('Running apt-get upgrade… this can take several minutes.');
         setBusy(upgradeBtn, true, 'bi-arrow-up-circle', tUpgrading);

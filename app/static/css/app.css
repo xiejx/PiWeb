@@ -236,3 +236,10 @@ main {
     font-size: 0.82rem;
     min-height: 320px;
 }
+
+/* Confirmation dialog: questions such as the boot-file warning contain line
+   breaks, and the panel should keep them instead of collapsing them. */
+#piwebConfirmBody {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

@@ -405,7 +405,7 @@
             },
             async regenerate() {
                 if (this.form.id === null) return;
-                if (!confirm({{ t('btn.confirm_regenerate', 'Regenerate the API hash? The old URL will stop working immediately.')|tojson }})) return;
+                if (!(await PiWeb.confirm({{ t('btn.confirm_regenerate', 'Regenerate the API hash? The old URL will stop working immediately.')|tojson }}))) return;
                 try {
                     const data = await PiWeb.api("/ajax/buttons/regenerate", {
                         method: "POST",
@@ -455,7 +455,7 @@
             async confirmDelete(index) {
                 const button = this.buttons[index];
                 if (!button) return;
-                if (!confirm({{ t('btn.confirm_delete', 'Delete this button?')|tojson }})) return;
+                if (!(await PiWeb.confirm({{ t('btn.confirm_delete', 'Delete this button?')|tojson }}))) return;
                 try {
                     await PiWeb.api("/ajax/buttons/delete", {
                         method: "POST",

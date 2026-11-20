@@ -48,6 +48,60 @@
         document.dispatchEvent(new CustomEvent("piweb:theme", { detail: { dark } }));
     }
 
+    // ---- confirmation dialog -------------------------------------------------
+    //
+    // A Bootstrap modal instead of window.confirm(): it matches the panel, it
+    // works in dark mode, and on a phone the native dialog is easy to dismiss
+    // by accident. Resolves to true only when the confirm button is pressed.
+    //
+    // The dialog markup lives in base.html; when it is missing (a page that
+    // does not extend the layout) we fall back to the native prompt.
+
+    let confirmModal = null;
+    let confirmResolve = null;
+
+    function settleConfirm(answer) {
+        const resolve = confirmResolve;
+        confirmResolve = null;
+        if (resolve) resolve(answer);
+    }
+
+    function confirmDialog(message, options) {
+        options = options || {};
+        const el = document.getElementById("piwebConfirmModal");
+        if (!el || !window.bootstrap || !window.bootstrap.Modal) {
+            return Promise.resolve(window.confirm(message));
+        }
+
+        // Two questions cannot wait at the same time: the older one is declined.
+        settleConfirm(false);
+
+        const title = el.querySelector("#piwebConfirmTitle span");
+        const body = el.querySelector("#piwebConfirmBody");
+        const ok = el.querySelector("#piwebConfirmOk");
+        if (title) title.textContent = options.title || el.dataset.defaultTitle || title.textContent;
+        if (body) body.textContent = message || "";
+        if (ok) {
+            ok.textContent = options.ok || el.dataset.defaultOk || ok.textContent;
+            ok.className = "btn " + (options.okClass || "btn-danger");
+        }
+
+        return new Promise(function (resolve) {
+            confirmResolve = resolve;
+            if (!confirmModal) {
+                confirmModal = new bootstrap.Modal(el);
+                // Escape, the close button and Cancel all hide the dialog
+                // without calling the OK handler, so the answer defaults to no.
+                el.addEventListener("hidden.bs.modal", function () { settleConfirm(false); });
+                el.querySelector("#piwebConfirmOk").addEventListener("click", function () {
+                    settleConfirm(true);
+                    confirmModal.hide();
+                });
+            }
+            confirmModal.show();
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         const dark = document.documentElement.getAttribute("data-bs-theme") === "dark";
         applyTheme(dark);
@@ -65,23 +119,28 @@
         // Forms put data-confirm on the <form> element, whose question belongs
         // to the submit event: matching clicks here fired it whenever a field
         // inside the form was clicked.
-        document.body.addEventListener("click", function (event) {
+        document.body.addEventListener("click", async function (event) {
             const target = event.target.closest("[data-confirm]");
             if (!target || target.tagName === "FORM") return;
-            if (!window.confirm(target.getAttribute("data-confirm"))) {
-                event.preventDefault();
-                event.stopPropagation();
+
+            // Re-entry after the operator agreed: let the click through.
+            if (target.dataset.confirmed === "1") {
+                delete target.dataset.confirmed;
                 return;
             }
+
+            event.preventDefault();
+            event.stopPropagation();
+            if (!(await confirmDialog(target.getAttribute("data-confirm")))) return;
             const again = target.getAttribute("data-confirm-again");
-            if (again && !window.confirm(again)) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
+            if (again && !(await confirmDialog(again))) return;
+
+            target.dataset.confirmed = "1";
+            target.click();
         });
 
         // Confirmation for <form data-confirm>, including Enter-to-submit.
-        document.body.addEventListener("submit", function (event) {
+        document.body.addEventListener("submit", async function (event) {
             const form = event.target;
             if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-confirm")) return;
             if (form.dataset.confirmed === "1") {
@@ -89,9 +148,9 @@
                 return;
             }
             event.preventDefault();
-            if (!window.confirm(form.getAttribute("data-confirm"))) return;
+            if (!(await confirmDialog(form.getAttribute("data-confirm")))) return;
             const again = form.getAttribute("data-confirm-again");
-            if (again && !window.confirm(again)) return;
+            if (again && !(await confirmDialog(again))) return;
             form.dataset.confirmed = "1";
             if (typeof form.requestSubmit === "function") form.requestSubmit();
             else form.submit();
@@ -115,5 +174,5 @@
         event.detail.headers["X-CSRF-Token"] = CSRF;
     });
 
-    window.PiWeb = { toast, api, csrf: CSRF };
+    window.PiWeb = { toast, api, confirm: confirmDialog, csrf: CSRF };
 })();

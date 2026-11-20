@@ -755,5 +755,21 @@
   "tehy.sensor_s4": "s4 (temperature only):",
   "tehy.sensor_s5": "s5 (temperature + humidity + pressure):",
   "tehy.note1": "The sensor value is used as the TeHyBug key when bug_key is not sent.",
-  "tehy.note2": "Set a static IP for your Raspberry Pi in your router to keep the URL stable."
+  "tehy.note2": "Set a static IP for your Raspberry Pi in your router to keep the URL stable.",
+  "confirm.title": "Please confirm",
+  "confirm.ok": "Confirm",
+  "act.confirm_delete_log": "Delete the log {name}?",
+  "check.confirm_totp_off": "Turn off two-factor authentication?",
+  "cron.confirm_remove": "Remove this cron job?",
+  "tehy.delete_confirm": "Delete this TeHyBug and all of its data?",
+  "rpi.confirm_enable": "Enable {iface}?",
+  "rpi.confirm_disable": "Disable {iface}?",
+  "rpi.boot_overwrite": "You are about to overwrite:",
+  "rpi.boot_reboot_note": "Most changes take effect after a reboot.",
+  "rpi.boot_save_confirm": "Save this file now?",
+  "rpi.unmount_confirm": "Unmount {device}?",
+  "rpi.unmount_warning": "Make sure no process is using files on it.",
+  "wifi.confirm_disconnect": "Disconnect the current Wi-Fi network?",
+  "rpi.boot_confirm_warning": "Editing boot files can stop the Raspberry Pi from booting.",
+  "rpi.boot_confirm_backup": "A backup ({name}.piweb.bak) will be written first."
 }

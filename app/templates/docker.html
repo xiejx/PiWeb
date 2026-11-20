@@ -619,8 +619,8 @@
         } else if (item.state === 'paused') {
             addItem(T.labelUnpause, () => act(item, 'unpause'));
         }
-        addItem(T.labelKill, () => {
-            if (!window.confirm(T.confirmKill)) return;
+        addItem(T.labelKill, async () => {
+            if (!(await api.confirm(T.confirmKill))) return;
             act(item, 'kill', { signal: 'SIGKILL' });
         });
         addItem(T.labelRename, () => {
@@ -631,8 +631,8 @@
         const divider = el('li');
         divider.appendChild(el('hr', 'dropdown-divider'));
         menu.appendChild(divider);
-        addItem(T.labelRemove, () => {
-            if (!window.confirm(T.confirmRemove)) return;
+        addItem(T.labelRemove, async () => {
+            if (!(await api.confirm(T.confirmRemove))) return;
             act(item, 'rm_force');
         });
         wrap.appendChild(toggle);
@@ -641,8 +641,8 @@
     }
 
     async function act(item, action, extra) {
-        if (action === 'stop' && !window.confirm(T.confirmStop)) return;
-        if (action === 'restart' && !window.confirm(T.confirmRestart)) return;
+        if (action === 'stop' && !(await api.confirm(T.confirmStop))) return;
+        if (action === 'restart' && !(await api.confirm(T.confirmRestart))) return;
         try {
             const payload = Object.assign({ id: item.id, act: action }, extra || {});
             const data = await api.api('/ajax/docker/action', { method: 'POST', body: payload });
@@ -842,8 +842,8 @@
             footer.appendChild(labelledButton(T.labelUp, 'bi-play-fill', 'success', () => composeAction(project, 'up')));
             footer.appendChild(labelledButton(T.labelRestart, 'bi-arrow-clockwise', 'info', () => composeAction(project, 'restart')));
             footer.appendChild(labelledButton(T.labelStop, 'bi-stop-fill', 'warning', () => composeAction(project, 'stop')));
-            footer.appendChild(labelledButton(T.labelDown, 'bi-trash', 'danger', () => {
-                if (!window.confirm(T.confirmDown)) return;
+            footer.appendChild(labelledButton(T.labelDown, 'bi-trash', 'danger', async () => {
+                if (!(await api.confirm(T.confirmDown))) return;
                 composeAction(project, 'down');
             }));
             const file = labelledButton(T.labelFile, 'bi-file-earmark-code', 'secondary', () => openComposeFile(project));
@@ -935,8 +935,8 @@
                 imageAction('tag', { ref: image.ref, target: target }, true);
             }));
             actions.appendChild(document.createTextNode(' '));
-            actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', () => {
-                if (!window.confirm(T.confirmRemoveImage)) return;
+            actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', async () => {
+                if (!(await api.confirm(T.confirmRemoveImage))) return;
                 imageAction('rm', { ref: image.ref, force: true }, true);
             }));
             tr.appendChild(actions);
@@ -993,8 +993,8 @@
             tr.appendChild(cell(volume.driver, 'small'));
             tr.appendChild(cell(volume.mountpoint || '—', 'text-body-secondary mono small text-break'));
             const actions = el('td', 'text-end pe-2');
-            actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', () => {
-                if (!window.confirm(T.confirmRemoveVolume)) return;
+            actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', async () => {
+                if (!(await api.confirm(T.confirmRemoveVolume))) return;
                 volumeAction('rm', volume.name);
             }));
             tr.appendChild(actions);
@@ -1052,8 +1052,8 @@
             tr.appendChild(cell(network.short_id, 'text-body-secondary mono small'));
             const actions = el('td', 'text-end pe-2');
             if (!builtIn.includes(network.name)) {
-                actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', () => {
-                    if (!window.confirm(T.confirmRemoveNetwork)) return;
+                actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', async () => {
+                    if (!(await api.confirm(T.confirmRemoveNetwork))) return;
                     networkAction('rm', network.name, null);
                 }));
             }
@@ -1223,7 +1223,7 @@
     async function runPrune() {
         const targets = selectedTargets();
         if (!targets.length) return;
-        if (!window.confirm(T.confirmPrune)) return;
+        if (!(await api.confirm(T.confirmPrune))) return;
         try {
             const data = await api.api('/ajax/docker/system/prune', {
                 method: 'POST',
@@ -1324,8 +1324,8 @@
     $('imagePullRef').addEventListener('keydown', (event) => {
         if (event.key === 'Enter') $('imagePullBtn').click();
     });
-    $('imagePruneBtn').addEventListener('click', () => {
-        if (!window.confirm(T.confirmPrune)) return;
+    $('imagePruneBtn').addEventListener('click', async () => {
+        if (!(await api.confirm(T.confirmPrune))) return;
         imageAction('prune', {});
     });
 
@@ -1335,8 +1335,8 @@
         volumeAction('create', name);
         $('volumeName').value = '';
     });
-    $('volumePruneBtn').addEventListener('click', () => {
-        if (!window.confirm(T.confirmPrune)) return;
+    $('volumePruneBtn').addEventListener('click', async () => {
+        if (!(await api.confirm(T.confirmPrune))) return;
         volumeAction('prune', '');
     });
 
@@ -1346,8 +1346,8 @@
         networkAction('create', name, $('networkDriver').value);
         $('networkName').value = '';
     });
-    $('networkPruneBtn').addEventListener('click', () => {
-        if (!window.confirm(T.confirmPrune)) return;
+    $('networkPruneBtn').addEventListener('click', async () => {
+        if (!(await api.confirm(T.confirmPrune))) return;
         networkAction('prune', '');
     });
 
