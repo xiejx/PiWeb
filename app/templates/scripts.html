@@ -97,13 +97,13 @@
                 <p class="mono small mb-3" id="scheduleScriptName"></p>
                 <label class="form-label" for="schedulePreset">{{ t('cron.when', 'When') }}</label>
                 <select class="form-select mb-3" id="schedulePreset">
-                    <option value="*/5 * * * *">Every 5 minutes</option>
-                    <option value="*/15 * * * *">Every 15 minutes</option>
-                    <option value="0 * * * *">Every hour</option>
-                    <option value="0 4 * * *" selected>Every day at 04:00</option>
-                    <option value="@daily">Every day (midnight)</option>
-                    <option value="0 0 * * 0">Every week (Sunday)</option>
-                    <option value="@reboot">At boot</option>
+                    <option value="*/5 * * * *">{{ t("cron.preset_5", "Every 5 minutes") }}</option>
+                    <option value="*/15 * * * *">{{ t("cron.preset_15", "Every 15 minutes") }}</option>
+                    <option value="0 * * * *">{{ t("cron.preset_hour", "Every hour") }}</option>
+                    <option value="0 4 * * *" selected>{{ t("cron.preset_0400", "Every day at 04:00") }}</option>
+                    <option value="@daily">{{ t("cron.preset_daily", "Every day (midnight)") }}</option>
+                    <option value="0 0 * * 0">{{ t("cron.preset_weekly", "Every week (Sunday)") }}</option>
+                    <option value="@reboot">{{ t("cron.preset_boot", "At boot") }}</option>
                 </select>
                 <label class="form-label" for="scheduleExpr">{{ t('cron.expr', 'Schedule expression') }}</label>
                 <input class="form-control mono" id="scheduleExpr" value="0 4 * * *">

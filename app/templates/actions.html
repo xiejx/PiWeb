@@ -7,7 +7,7 @@
     <div class="alert alert-{{ result.level }}">
         <div class="fw-semibold">{{ result.message }}</div>
         {% if result.command %}
-            <div class="mt-2 small">Command: <code>{{ result.command }}</code></div>
+            <div class="mt-2 small">{{ t("act.command_label", "Command:") }} <code>{{ result.command }}</code></div>
         {% endif %}
         {% if result.output %}
             <pre class="terminal mt-2 mb-0">{{ result.output }}</pre>
@@ -135,9 +135,9 @@
                     <div class="input-group">
                         <select class="form-select" name="git_target" id="gitTarget">
                             <option value="master">{{ t('act.latest', 'Latest (master branch)') }}</option>
-                            {% for tag in tags %}<option value="{{ tag }}">Release {{ tag }}</option>{% endfor %}
+                            {% for tag in tags %}<option value="{{ tag }}">{{ t("act.release", "Release {tag}").replace("{tag}", tag) }}</option>{% endfor %}
                         </select>
-                        <button class="btn btn-outline-secondary" type="button" onclick="refreshTags()" title="Fetch tags">
+                        <button class="btn btn-outline-secondary" type="button" onclick="refreshTags()" title="{{ t("act.fetch_tags", "Fetch tags") }}">
                             <i class="bi bi-arrow-clockwise"></i>
                         </button>
                         <button class="btn btn-warning" type="submit">{{ t('act.update', 'Update') }}</button>

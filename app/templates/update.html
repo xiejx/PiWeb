@@ -48,7 +48,7 @@
                         </option>
                         {% for tag in tags %}
                             <option value="{{ tag }}" {% if selected == tag %}selected{% endif %}>
-                                Release {{ tag }}
+                                {{ t("update.release", "Release {tag}").replace("{tag}", tag) }}
                             </option>
                         {% endfor %}
                     </select>

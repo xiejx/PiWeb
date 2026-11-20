@@ -102,13 +102,13 @@
         <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('gpio.legend', 'Legend') }}</div>
         <div class="card-body small">
             <ul class="mb-0">
-                <li><strong>BCM</strong> — Broadcom pin number</li>
-                <li><strong>wPi</strong> — WiringPi pin number</li>
-                <li><strong>Mode</strong> — IN (input) / OUT (output); pins in an alternate function (ALT, I2C, SPI, UART) are read-only</li>
-                <li><strong>V</strong> — current level (0 / 1); writable only while the pin is in OUT mode</li>
-                <li><strong>Physical</strong> — header pin numbers (left | right)</li>
-                <li><span class="badge text-bg-danger">3.3V</span> / <span class="badge text-bg-danger">5V</span> power,
-                    <span class="badge text-bg-dark">GND</span> ground — fixed, cannot be switched.</li>
+                <li><strong>BCM</strong> {{ t("gpio.legend_bcm", "— Broadcom pin number") }}</li>
+                <li><strong>wPi</strong> {{ t("gpio.legend_wpi", "— WiringPi pin number") }}</li>
+                <li><strong>{{ t("gpio.mode", "Mode") }}</strong> {{ t("gpio.legend_mode", "— IN (input) / OUT (output); pins in an alternate function (ALT, I2C, SPI, UART) are read-only") }}</li>
+                <li><strong>V</strong> {{ t("gpio.legend_v", "— current level (0 / 1); writable only while the pin is in OUT mode") }}</li>
+                <li><strong>{{ t("gpio.physical", "Physical") }}</strong> {{ t("gpio.legend_physical", "— header pin numbers (left | right)") }}</li>
+                <li><span class="badge text-bg-danger">3.3V</span> / <span class="badge text-bg-danger">5V</span> {{ t("gpio.legend_power", "power,") }}
+                    <span class="badge text-bg-dark">GND</span> {{ t("gpio.legend_ground", "ground — fixed, cannot be switched.") }}</li>
             </ul>
         </div>
     </div>

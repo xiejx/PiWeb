@@ -184,12 +184,12 @@
                                 <i class="bi bi-palette me-1"></i>{{ t('btn.style', 'Style') }}
                             </label>
                             <select class="form-select" id="buttonStyle" x-model="form.style">
-                                <option value="btn-default">Default (Gray)</option>
-                                <option value="btn-primary">Primary (Blue)</option>
-                                <option value="btn-success">Success (Green)</option>
-                                <option value="btn-info">Info (Light Blue)</option>
-                                <option value="btn-warning">Warning (Orange)</option>
-                                <option value="btn-danger">Danger (Red)</option>
+                                <option value="btn-default">{{ t("btn.style_default", "Default (Gray)") }}</option>
+                                <option value="btn-primary">{{ t("btn.style_primary", "Primary (Blue)") }}</option>
+                                <option value="btn-success">{{ t("btn.style_success", "Success (Green)") }}</option>
+                                <option value="btn-info">{{ t("btn.style_info", "Info (Light Blue)") }}</option>
+                                <option value="btn-warning">{{ t("btn.style_warning", "Warning (Orange)") }}</option>
+                                <option value="btn-danger">{{ t("btn.style_danger", "Danger (Red)") }}</option>
                             </select>
                         </div>
                         <div class="col-6">
@@ -197,10 +197,10 @@
                                 <i class="bi bi-arrows-angle-expand me-1"></i>{{ t('btn.size', 'Size') }}
                             </label>
                             <select class="form-select" id="buttonSize" x-model="form.size">
-                                <option value="btn-lg">Large</option>
-                                <option value="btn-md">Medium</option>
-                                <option value="btn-sm">Small</option>
-                                <option value="btn-xs">Extra Small</option>
+                                <option value="btn-lg">{{ t("btn.size_lg", "Large") }}</option>
+                                <option value="btn-md">{{ t("btn.size_md", "Medium") }}</option>
+                                <option value="btn-sm">{{ t("btn.size_sm", "Small") }}</option>
+                                <option value="btn-xs">{{ t("btn.size_xs", "Extra Small") }}</option>
                             </select>
                         </div>
                     </div>

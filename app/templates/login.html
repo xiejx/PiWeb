@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>Sign in — PiWeb</title>
+    <title>{{ t('login.title', 'Sign in — PiWeb') }}</title>
     <link rel="icon" href="/static/images/raspberry.png" type="image/png">
     <link href="/static/vendor/bootstrap.min.css?v={{ asset_version }}" rel="stylesheet">
     <link href="/static/vendor/bootstrap-icons.min.css?v={{ asset_version }}" rel="stylesheet">
@@ -25,44 +25,44 @@
             <div class="text-center mb-4">
                 <img src="/static/images/raspberry.png" alt="PiWeb" width="56" height="56" class="mb-2">
                 <h1 class="h4 fw-semibold mb-1">PiWeb</h1>
-                <p class="text-body-secondary small mb-0">Raspberry Pi control panel</p>
+                <p class="text-body-secondary small mb-0">{{ t('login.subtitle', 'Raspberry Pi control panel') }}</p>
             </div>
 
             {% if action == 'incorrect_login' %}
-                <div class="alert alert-danger py-2 small">Incorrect username, password or two-factor code.</div>
+                <div class="alert alert-danger py-2 small">{{ t('login.incorrect', 'Incorrect username, password or two-factor code.') }}</div>
             {% elif action == 'locked' %}
                 <div class="alert alert-warning py-2 small">
-                    Too many failed attempts. Try again in about {{ ((wait or 60) / 60)|round(0, 'ceil')|int }} minute(s).
+                    {{ t('login.locked', 'Too many failed attempts. Try again in about {minutes} minute(s).').replace('{minutes}', (((wait or 60) / 60)|round(0, 'ceil')|int)|string) }}
                 </div>
             {% elif just_expired %}
-                <div class="alert alert-info py-2 small">Your session expired. Please sign in again.</div>
+                <div class="alert alert-info py-2 small">{{ t('login.expired', 'Your session expired. Please sign in again.') }}</div>
             {% endif %}
 
             <form method="post" action="/login" autocomplete="off">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="mb-3">
-                    <label class="form-label" for="username">Username</label>
+                    <label class="form-label" for="username">{{ t('login.username', 'Username') }}</label>
                     <input class="form-control" id="username" name="username" autocomplete="username" required autofocus>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="password">Password</label>
+                    <label class="form-label" for="password">{{ t('login.password', 'Password') }}</label>
                     <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
                 </div>
                 {% if totp_enabled %}
                     <div class="mb-3">
-                        <label class="form-label" for="totp">Two-factor code</label>
+                        <label class="form-label" for="totp">{{ t('login.totp', 'Two-factor code') }}</label>
                         <input class="form-control" id="totp" name="totp" inputmode="numeric" maxlength="7"
                                placeholder="123456" autocomplete="one-time-code">
                     </div>
                 {% endif %}
                 <button class="btn btn-primary w-100 py-2" type="submit">
-                    <i class="bi bi-box-arrow-in-right me-1"></i>Sign in
+                    <i class="bi bi-box-arrow-in-right me-1"></i>{{ t('login.submit', 'Sign in') }}
                 </button>
             </form>
 
             <div class="d-flex justify-content-between align-items-center mt-4 small text-body-secondary">
                 <span>{{ settings.login_user }}</span>
-                <button type="button" class="btn btn-link btn-sm p-0" id="themeToggle">Toggle theme</button>
+                <button type="button" class="btn btn-link btn-sm p-0" id="themeToggle">{{ t('login.toggle_theme', 'Toggle theme') }}</button>
             </div>
         </div>
     </div>

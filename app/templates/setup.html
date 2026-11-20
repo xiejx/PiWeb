@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>First-run setup — PiWeb</title>
+    <title>{{ t('setup.title', 'First-run setup — PiWeb') }}</title>
     <link rel="icon" href="/static/images/raspberry.png" type="image/png">
     <link href="/static/vendor/bootstrap.min.css?v={{ asset_version }}" rel="stylesheet">
     <link href="/static/vendor/bootstrap-icons.min.css?v={{ asset_version }}" rel="stylesheet">
@@ -17,26 +17,26 @@
         <div class="card-body p-4 p-sm-5">
             <div class="text-center mb-4">
                 <img src="/static/images/raspberry.png" alt="PiWeb" width="56" height="56" class="mb-2">
-                <h1 class="h4 fw-semibold mb-1">PiWeb setup</h1>
+                <h1 class="h4 fw-semibold mb-1">{{ t('setup.heading', 'PiWeb setup') }}</h1>
             </div>
 
             {% if configured %}
                 <div class="alert alert-success small">
-                    <strong>{{ 'PiWeb is configured.' if done else 'Already configured.' }}</strong>
-                    {% if done %}Sign in with the credentials you just chose.{% else %}
-                    Authentication is set up, so first-run setup is disabled.{% endif %}
+                    <strong>{{ t('setup.configured', 'PiWeb is configured.') if done else t('setup.already', 'Already configured.') }}</strong>
+                    {% if done %}{{ t('setup.done_text', 'Sign in with the credentials you just chose.') }}{% else %}
+                    {{ t('setup.already_text', 'Authentication is set up, so first-run setup is disabled.') }}{% endif %}
                 </div>
-                <a class="btn btn-primary w-100" href="/login">Continue to sign in</a>
+                <a class="btn btn-primary w-100" href="/login">{{ t('setup.continue', 'Continue to sign in') }}</a>
             {% elif not allowed %}
                 <div class="alert alert-danger small">
-                    <strong>Setup is local-only.</strong> Connect from the same machine or a private
-                    network address (your address: <code>{{ client_ip }}</code>), or edit
-                    <code>config.toml</code> by hand.
+                    <strong>{{ t('setup.local_only', 'Setup is local-only.') }}</strong>
+                    {{ t('setup.local_hint', 'Connect from the same machine or a private network address (your address:') }}
+                    <code>{{ client_ip }}</code>{{ t('setup.local_hint2', '), or edit') }}
+                    <code>config.toml</code>{{ t('setup.local_hint3', 'by hand.') }}
                 </div>
             {% else %}
                 <p class="text-body-secondary small">
-                    PiWeb can run shell commands on this host, so it refuses to serve the panel until
-                    a login is configured.
+                    {{ t('setup.reason', 'PiWeb can run shell commands on this host, so it refuses to serve the panel until a login is configured.') }}
                 </p>
                 {% for error in errors %}
                     <div class="alert alert-danger py-2 small">{{ error }}</div>
@@ -44,24 +44,24 @@
                 <form method="post" action="/setup" autocomplete="off">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="mb-3">
-                        <label class="form-label" for="username">Username</label>
+                        <label class="form-label" for="username">{{ t('setup.username', 'Username') }}</label>
                         <input class="form-control" id="username" name="username" maxlength="50"
                                value="{{ username }}" autocomplete="username" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="password">Password <span class="text-body-secondary small">(at least 8 characters)</span></label>
+                        <label class="form-label" for="password">{{ t('setup.password', 'Password') }} <span class="text-body-secondary small">{{ t('setup.min_chars', '(at least 8 characters)') }}</span></label>
                         <input class="form-control" id="password" name="password" type="password"
                                autocomplete="new-password" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="password2">Repeat password</label>
+                        <label class="form-label" for="password2">{{ t('setup.repeat', 'Repeat password') }}</label>
                         <input class="form-control" id="password2" name="password2" type="password"
                                autocomplete="new-password" required>
                     </div>
-                    <button class="btn btn-primary w-100 py-2" type="submit">Save and enable login</button>
+                    <button class="btn btn-primary w-100 py-2" type="submit">{{ t('setup.submit', 'Save and enable login') }}</button>
                 </form>
                 <p class="text-body-secondary small mt-3 mb-0">
-                    Credentials are written to <code>config.toml</code> as a password hash.
+                    {{ t('setup.hash_note', 'Credentials are written to') }} <code>config.toml</code>{{ t('setup.hash_note2', 'as a password hash.') }}
                 </p>
             {% endif %}
         </div>

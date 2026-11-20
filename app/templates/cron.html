@@ -11,16 +11,16 @@
                 <label class="form-label" for="cronPreset">{{ t('cron.when', 'When') }}</label>
                 <select class="form-select" id="cronPreset" x-model="preset" @change="applyPreset()">
                     <option value="">{{ t('cron.custom', 'Custom…') }}</option>
-                    <option value="* * * * *">Every minute</option>
-                    <option value="*/5 * * * *">Every 5 minutes</option>
-                    <option value="*/15 * * * *">Every 15 minutes</option>
-                    <option value="*/30 * * * *">Every 30 minutes</option>
-                    <option value="0 * * * *">Every hour</option>
-                    <option value="@daily">Every day (midnight)</option>
-                    <option value="0 4 * * *">Every day at 04:00</option>
-                    <option value="0 0 * * 0">Every week (Sunday)</option>
-                    <option value="0 0 1 * *">Every month (1st)</option>
-                    <option value="@reboot">At boot</option>
+                    <option value="* * * * *">{{ t("cron.preset_minute", "Every minute") }}</option>
+                    <option value="*/5 * * * *">{{ t("cron.preset_5", "Every 5 minutes") }}</option>
+                    <option value="*/15 * * * *">{{ t("cron.preset_15", "Every 15 minutes") }}</option>
+                    <option value="*/30 * * * *">{{ t("cron.preset_30", "Every 30 minutes") }}</option>
+                    <option value="0 * * * *">{{ t("cron.preset_hour", "Every hour") }}</option>
+                    <option value="@daily">{{ t("cron.preset_daily", "Every day (midnight)") }}</option>
+                    <option value="0 4 * * *">{{ t("cron.preset_0400", "Every day at 04:00") }}</option>
+                    <option value="0 0 * * 0">{{ t("cron.preset_weekly", "Every week (Sunday)") }}</option>
+                    <option value="0 0 1 * *">{{ t("cron.preset_monthly", "Every month (1st)") }}</option>
+                    <option value="@reboot">{{ t("cron.preset_boot", "At boot") }}</option>
                 </select>
             </div>
             <div class="col-12 col-md-3">
@@ -44,7 +44,7 @@
             <span class="small" :class="valid === false ? 'text-danger' : 'text-info'" x-text="hint"></span>
         </div>
         <div class="muted-small mt-2">
-            <code>minute hour day month weekday</code> ·
+            <code>{{ t("cron.fields", "minute hour day month weekday") }}</code> ·
             <a href="https://crontab.guru/" target="_blank" rel="noopener">crontab.guru</a>
         </div>
     </div>
