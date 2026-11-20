@@ -60,10 +60,14 @@
             });
         }
 
-        // Ask before any destructive link/button.
+        // Ask before a destructive link or button.
+        //
+        // Forms put data-confirm on the <form> element, whose question belongs
+        // to the submit event: matching clicks here fired it whenever a field
+        // inside the form was clicked.
         document.body.addEventListener("click", function (event) {
             const target = event.target.closest("[data-confirm]");
-            if (!target) return;
+            if (!target || target.tagName === "FORM") return;
             if (!window.confirm(target.getAttribute("data-confirm"))) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -74,6 +78,23 @@
                 event.preventDefault();
                 event.stopPropagation();
             }
+        });
+
+        // Confirmation for <form data-confirm>, including Enter-to-submit.
+        document.body.addEventListener("submit", function (event) {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-confirm")) return;
+            if (form.dataset.confirmed === "1") {
+                delete form.dataset.confirmed;
+                return;
+            }
+            event.preventDefault();
+            if (!window.confirm(form.getAttribute("data-confirm"))) return;
+            const again = form.getAttribute("data-confirm-again");
+            if (again && !window.confirm(again)) return;
+            form.dataset.confirmed = "1";
+            if (typeof form.requestSubmit === "function") form.requestSubmit();
+            else form.submit();
         });
 
         // HTMX error surfacing.
