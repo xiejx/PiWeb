@@ -68,6 +68,15 @@ for grp in gpio video i2c spi docker; do
         sudo usermod -aG "$grp" "$PIWEB_USER" || true
     fi
 done
+# The Docker module talks to /var/run/docker.sock through the docker group. The
+# group change only applies to processes started afterwards, so the service is
+# (re)started below — re-run `sudo systemctl restart piweb` if you add the group
+# to an existing installation.
+if getent group docker >/dev/null 2>&1; then
+    info "Docker detected — $PIWEB_USER can use the Docker module."
+else
+    warn "Docker is not installed; the Docker module will report it as unavailable."
+fi
 
 # ── source ────────────────────────────────────────────────────────────────────
 if [ -f "$(dirname "$0")/app/main.py" ] && [ "$(cd "$(dirname "$0")" && pwd)" != "$PIWEB_DIR" ]; then

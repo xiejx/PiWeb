@@ -5,6 +5,7 @@ import shlex
 import shutil
 import subprocess
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,6 +62,45 @@ class Executor:
         if self.mode == "ssh":
             return self._run_ssh(command, timeout, input)
         return self._run_local(command, timeout, cwd, env, input)
+
+    def run_argv(
+        self,
+        argv: Sequence[str],
+        timeout: float = 30.0,
+        input: str | None = None,
+    ) -> CommandResult:
+        """Run a command from an argument list instead of a shell string.
+
+        Nothing is interpreted by a shell, so arguments such as container names
+        or image references cannot break out into a second command. Prefer this
+        over :meth:`run` for anything that takes user-supplied values.
+        """
+        args = [str(part) for part in argv]
+        if not args:
+            return CommandResult(stderr="Empty command", returncode=2)
+        if self.mode == "ssh":
+            return self._run_ssh(shlex.join(args), timeout, input)
+        try:
+            completed = subprocess.run(
+                args,
+                shell=False,
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=timeout,
+                input=input,
+            )
+            return CommandResult(
+                stdout=completed.stdout or "",
+                stderr=completed.stderr or "",
+                returncode=completed.returncode,
+            )
+        except subprocess.TimeoutExpired:
+            return CommandResult(
+                stderr=f"Command timed out after {timeout}s", returncode=124
+            )
+        except OSError as exc:
+            return CommandResult(stderr=str(exc), returncode=127)
 
     def _run_local(
         self,

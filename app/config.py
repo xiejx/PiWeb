@@ -58,6 +58,23 @@ class ModuleConfig:
 
 
 @dataclass
+class DockerConfig:
+    """Settings for the Docker module ([docker] in config.toml).
+
+    PiWeb talks to the daemon through the command line client. `privileged`
+    picks how: "group" assumes the service user is in the docker group, "sudo"
+    goes through the sudoers entry and works on older installations.
+    """
+
+    privileged: str = "group"  # group | sudo
+    compose_enabled: bool = True
+    compose_dirs: list[str] = field(default_factory=list)
+    stats_enabled: bool = True
+    log_max_lines: int = 2000
+    task_timeout: int = 1800
+
+
+@dataclass
 class Settings:
     # server
     host: str = "127.0.0.1"
@@ -103,6 +120,8 @@ class Settings:
     debug: bool = False
     # modules
     modules: dict[str, ModuleConfig] = field(default_factory=dict)
+    # docker
+    docker: DockerConfig = field(default_factory=DockerConfig)
     # raw TOML data for optional feature sections ([sensors], [storage], …)
     raw_config: dict[str, Any] = field(default_factory=dict)
     # paths
@@ -193,6 +212,35 @@ def _parse_modules(data: dict[str, Any]) -> dict[str, ModuleConfig]:
     return modules
 
 
+def _parse_docker(data: dict[str, Any]) -> DockerConfig:
+    section = _section(data, "docker")
+    privileged = str(section.get("privileged", "group")).strip().lower()
+    if privileged not in {"group", "sudo"}:
+        privileged = "group"
+
+    raw_dirs = section.get("compose_dirs", [])
+    compose_dirs = (
+        [str(item) for item in raw_dirs if str(item).strip()]
+        if isinstance(raw_dirs, (list, tuple))
+        else []
+    )
+
+    def _int(key: str, default: int, low: int, high: int) -> int:
+        try:
+            return max(low, min(high, int(section.get(key, default))))
+        except (TypeError, ValueError):
+            return default
+
+    return DockerConfig(
+        privileged=privileged,
+        compose_enabled=bool(section.get("compose_enabled", True)),
+        compose_dirs=compose_dirs,
+        stats_enabled=bool(section.get("stats_enabled", True)),
+        log_max_lines=_int("log_max_lines", 2000, 10, 5000),
+        task_timeout=_int("task_timeout", 1800, 60, 7200),
+    )
+
+
 def load_settings(path: str | os.PathLike[str] | None = None) -> Settings:
     config_path = Path(
         path or os.environ.get("PIWEB_CONFIG") or BASE_DIR / "config.toml"
@@ -248,6 +296,7 @@ def load_settings(path: str | os.PathLike[str] | None = None) -> Settings:
         api_allow_ips=_pick(ui, "api_allow_ips", []),
         debug=_pick(ui, "debug", False),
         modules=_parse_modules(data),
+        docker=_parse_docker(data),
         raw_config=data,
         config_path=config_path,
         data_dir=Path(os.environ.get("PIWEB_DATA_DIR", BASE_DIR / "data")),

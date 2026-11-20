@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from ..alerts import evaluate
+from ..alerts import evaluate, evaluate_docker
 from ..dashboard import collect, summary
 from ..executor import get_executor
 from ..script_store import tile_output
@@ -24,6 +24,7 @@ def dashboard(request: Request):
     inline, groups = build_nav(settings)
     data = collect(settings, executor)
     evaluate(settings, data)
+    evaluate_docker(settings, executor)
     return render(
         request,
         "dashboard.html",
@@ -38,6 +39,7 @@ def dashboard_live(request: Request):
     executor = get_executor(settings)
     data = collect(settings, executor)
     evaluate(settings, data)
+    evaluate_docker(settings, executor)
     return render(request, "partials/dashboard_live.html", d=data)
 
 

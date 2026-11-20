@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from .config import Settings
+from .docker import get_docker
 from .executor import Executor, format_bytes
 from .script_store import pins
 from .system import (
@@ -25,6 +26,24 @@ from .system import (
     top_partitions,
     usb_devices,
 )
+
+
+def docker_overview(settings: Settings, executor: Executor) -> dict | None:
+    """Container counters for the dashboard card; None when not applicable."""
+    if not settings.module_enabled("docker"):
+        return None
+    client = get_docker(settings, executor)
+    state = client.state()
+    if not state.available:
+        return None
+    counts = client.counts()
+    return {
+        "version": state.version,
+        "compose": state.compose,
+        "total": counts["total"],
+        "running": counts["running"],
+        "unhealthy": counts["unhealthy"],
+    }
 
 
 def collect(settings: Settings, executor: Executor) -> dict:
@@ -65,6 +84,7 @@ def collect(settings: Settings, executor: Executor) -> dict:
         "usb": usb_devices(executor),
         "users": active_users(executor),
         "pinned": pins(settings),
+        "docker": docker_overview(settings, executor),
         "now": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 

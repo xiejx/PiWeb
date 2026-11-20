@@ -37,7 +37,7 @@
 - **系统日志** —— 浏览 systemd journal、`dmesg` 和 `/var/log` 文件，可调整行数并过滤。
 - **Cron 任务** —— 查看、添加、删除用户的 crontab 条目；只读查看 `/etc/crontab`；一键把已保存的脚本加入计划任务。
 - **用户与用户组** —— 从 `/etc/passwd` 和 `/etc/group` 只读列出系统账户。
-- **Docker** —— 列出容器，启动/停止/重启/暂停/删除容器，查看日志与镜像列表（默认关闭）。
+- **Docker** —— 一个标签页管完容器、Compose 项目、镜像、卷与网络：查看状态/健康/端口/所属项目，启停重启暂停、强制结束、重命名、分级删除，容器详情（环境变量自动脱敏、挂载、网络、健康日志）、日志查看与跟随下载、资源占用、镜像拉取/删除/打标签/清理、卷与网络的增删清理、Compose 项目的一键 `up`/`stop`/`restart`/`down` 与只读编排文件、引擎信息、磁盘占用、按类别清理（先预估体积）与最近事件（默认关闭，见下方 [docker] 配置）。
 - **命令按钮** —— 为任意 shell 命令创建一键按钮，可选择二次确认弹窗或直接执行，结果就地显示，支持拖拽排序。
 - **Button API** —— 可选功能：每个按钮生成一个密钥，让 curl、Home Assistant 或任何自动化工具无需登录即可触发；可按 IP 限制访问。
 - **脚本编辑器** —— 使用 **CodeMirror 6**（已内置，离线可用）编辑 shell 和 Python 脚本；前台或后台运行；可从树莓派示例起步（GPIO、DHT11/22、BME280、DS18B20、HC-SR04、PIR、LDR、I2C 扫描、备份、Wi-Fi 扫描等）。脚本存放于 `user_scripts/`，永远不会作为静态文件对外提供。
@@ -178,6 +178,24 @@ url = "http://127.0.0.1:3000"
 iframe = true
 ```
 
+### Docker
+
+Docker 模块默认关闭，在 `/modules` 里打开即可。它通过 `docker` 命令行工作，因此服务用户要能访问 `/var/run/docker.sock`：安装器会把 `piweb` 加入 `docker` 组（装完需重启 `piweb.service` 让组生效），也可以改用 sudo 方式。
+
+```toml
+[modules.docker]
+enabled = true
+
+[docker]
+privileged = "group"      # group（推荐）| sudo（旧安装沿用 sudoers）
+compose_enabled = true    # 允许 up / stop / restart / down
+compose_dirs = []         # 例：["/home/pi/services"]，限定后只承认这些目录下的编排文件
+stats_enabled = true      # 容器 CPU/内存，部分内核读不到会自动提示
+log_max_lines = 2000
+```
+
+注意：能打开这个面板就等于能在主机上执行 `docker`，而 `docker` 等价于 root。危险操作（删除、`down`、`prune`）都会二次确认并写入 `command_logs/auth.log`；Compose 文件在本模块内**只读**，不提供在线编辑。
+
 ### 数据目录
 
 | 路径                     | 内容                                       |
@@ -186,7 +204,7 @@ iframe = true
 | `buttons/buttons.json` | 命令按钮及其 API 密钥                            |
 | `user_scripts/`        | 你的脚本及 `.pins.json`；不会通过 HTTP 对外提供        |
 | `command_logs/`        | 后台命令输出、`auth.log`、`api_calls.log`        |
-| `data/`                | 会话密钥、菜单顺序、模块状态、告警状态、TeHyBug 的 SQLite 数据库 |
+| `data/`                | 会话密钥、菜单顺序、模块状态、告警状态、`docker_tasks/` 后台任务日志、TeHyBug 的 SQLite 数据库 |
 
 安装器会把这些目录的属主设为 `piweb`。迁移已有安装时请保持相同的目录结构。
 

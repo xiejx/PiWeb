@@ -142,3 +142,43 @@ def evaluate(settings: Settings, data: dict) -> None:
             "PiWeb: power/thermal warning",
             "vcgencmd reports: " + ", ".join(flags),
         )
+
+
+_docker_check_at = 0.0
+
+
+def evaluate_docker(settings: Settings, executor, min_interval: float = 120.0) -> None:
+    """Warn once when a container becomes unhealthy or exits unexpectedly.
+
+    Cheap to call on every dashboard refresh: the docker read is cached in the
+    domain layer and the whole check runs at most every `min_interval` seconds.
+    """
+    global _docker_check_at
+    if not configured(settings) or not settings.module_enabled("docker"):
+        return
+    now = time.time()
+    if now - _docker_check_at < min_interval:
+        return
+    _docker_check_at = now
+
+    from .docker import get_docker
+
+    client = get_docker(settings, executor)
+    if not client.state().available:
+        return
+    for row in client.containers():
+        name = row.get("name") or row.get("short_id")
+        if row.get("health") == "unhealthy":
+            alert_once(
+                settings,
+                f"docker:{name}:unhealthy",
+                "PiWeb: container unhealthy",
+                f"{name} ({row.get('image', '')}) reports unhealthy.\n{row.get('status', '')}",
+            )
+        elif row.get("state") == "exited" and not str(row.get("status", "")).startswith("Exited (0)"):
+            alert_once(
+                settings,
+                f"docker:{name}:exited",
+                "PiWeb: container stopped",
+                f"{name} ({row.get('image', '')}) is not running: {row.get('status', '')}",
+            )
