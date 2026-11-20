@@ -147,7 +147,7 @@
   "scripts.note": "Skripte laufen über SSH als der konfigurierte SSH-Benutzer, genau wie auf der Aktionen-Seite. .txt-Dateien lassen sich bearbeiten, aber nicht ausführen. Ein gespeichertes Skript per Schaltfläche oder Cron ausführen mit:",
   "scripts.schedule": "Planen",
   "scripts.schedule_title": "Skript planen",
-  "nav.theme": "Helles / dunkles Design",
+  "nav.theme": "Design",
   "backup.title": "Sicherung & Wiederherstellung",
   "backup.download": "Sicherung herunterladen",
   "backup.download_btn": "Sicherung herunterladen",

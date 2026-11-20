@@ -380,7 +380,7 @@
   "auth.pw_title": "Default password in use.",
   "auth.pw_before": "Change it in",
   "auth.pw_after": "— the shipped defaults are public.",
-  "nav.theme": "Light / dark theme",
+  "nav.theme": "Theme",
   "act.advanced": "— advanced users only",
   "act.commands": "Commands",
   "act.confirm_cmd": "Execute this command?",
@@ -670,7 +670,6 @@
   "login.password": "Password",
   "login.totp": "Two-factor code",
   "login.submit": "Sign in",
-  "login.toggle_theme": "Toggle theme",
   "setup.title": "First-run setup — PiWeb",
   "setup.heading": "PiWeb setup",
   "setup.configured": "PiWeb is configured.",
@@ -771,5 +770,8 @@
   "rpi.unmount_warning": "Make sure no process is using files on it.",
   "wifi.confirm_disconnect": "Disconnect the current Wi-Fi network?",
   "rpi.boot_confirm_warning": "Editing boot files can stop the Raspberry Pi from booting.",
-  "rpi.boot_confirm_backup": "A backup ({name}.piweb.bak) will be written first."
+  "rpi.boot_confirm_backup": "A backup ({name}.piweb.bak) will be written first.",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "Follow system"
 }

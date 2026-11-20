@@ -40,12 +40,67 @@
         return payload;
     }
 
-    function applyTheme(dark) {
-        document.documentElement.setAttribute("data-bs-theme", dark ? "dark" : "light");
-        try { localStorage.setItem("piweb-theme", dark ? "dark" : "light"); } catch (e) {}
-        const icon = document.getElementById("themeIcon");
-        if (icon) icon.className = dark ? "bi bi-sun" : "bi bi-moon-stars";
-        document.dispatchEvent(new CustomEvent("piweb:theme", { detail: { dark } }));
+    // ---- theme ---------------------------------------------------------------
+    //
+    // Three modes: light, dark and system. "system" follows
+    // prefers-color-scheme and keeps following it while the page is open — the
+    // old behaviour could only be light or dark, and a first visit silently got
+    // whichever the OS preferred without saying so.
+    //
+    // The choice lives in localStorage under "piweb-theme"; a missing or
+    // unknown value means system. The inline script in the page head repeats
+    // this resolution before the first paint, so a dark panel never flashes
+    // white on load.
+
+    const THEME_KEY = "piweb-theme";
+    const THEME_MODES = ["light", "dark", "system"];
+    const THEME_ICONS = { light: "bi-sun", dark: "bi-moon-stars", system: "bi-circle-half" };
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function currentTheme() {
+        try {
+            const saved = localStorage.getItem(THEME_KEY);
+            return THEME_MODES.indexOf(saved) >= 0 ? saved : "system";
+        } catch (e) {
+            return "system";
+        }
+    }
+
+    function themeIsDark(mode) {
+        if (mode === "light") return false;
+        if (mode === "dark") return true;
+        return darkQuery.matches;
+    }
+
+    function applyTheme(mode) {
+        const theme = THEME_MODES.indexOf(mode) >= 0 ? mode : "system";
+        const dark = themeIsDark(theme);
+        const root = document.documentElement;
+        root.setAttribute("data-bs-theme", dark ? "dark" : "light");
+        root.setAttribute("data-theme-mode", theme);
+
+        document.querySelectorAll("[data-theme-icon]").forEach(function (icon) {
+            // Keep spacing helpers such as me-1; only the icon name changes.
+            const extra = Array.from(icon.classList).filter(function (name) {
+                return name !== "bi" && name.indexOf("bi-") !== 0;
+            });
+            icon.className = ["bi", THEME_ICONS[theme]].concat(extra).join(" ");
+        });
+        document.querySelectorAll("[data-theme-set]").forEach(function (item) {
+            const active = item.getAttribute("data-theme-set") === theme;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-current", active ? "true" : "false");
+        });
+
+        document.dispatchEvent(new CustomEvent("piweb:theme", {
+            detail: { dark: dark, mode: theme }
+        }));
+    }
+
+    function setTheme(mode) {
+        const theme = THEME_MODES.indexOf(mode) >= 0 ? mode : "system";
+        try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+        applyTheme(theme);
     }
 
     // ---- confirmation dialog -------------------------------------------------
@@ -103,15 +158,26 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
-        const dark = document.documentElement.getAttribute("data-bs-theme") === "dark";
-        applyTheme(dark);
+        applyTheme(currentTheme());
 
-        const toggle = document.getElementById("themeToggle");
-        if (toggle) {
-            toggle.addEventListener("click", function (event) {
-                event.preventDefault();
-                applyTheme(document.documentElement.getAttribute("data-bs-theme") !== "dark");
-            });
+        // Theme picker: the same three options appear in the navbar dropdown
+        // and on the login card.
+        document.body.addEventListener("click", function (event) {
+            const pick = event.target.closest("[data-theme-set]");
+            if (!pick) return;
+            event.preventDefault();
+            setTheme(pick.getAttribute("data-theme-set"));
+        });
+
+        // While "system" is selected the panel has to follow the OS when it
+        // switches at sunset, not only on the next page load.
+        const onSchemeChange = function () {
+            if (currentTheme() === "system") applyTheme("system");
+        };
+        if (typeof darkQuery.addEventListener === "function") {
+            darkQuery.addEventListener("change", onSchemeChange);
+        } else if (typeof darkQuery.addListener === "function") {
+            darkQuery.addListener(onSchemeChange);  // Safari < 14
         }
 
         // Ask before a destructive link or button.

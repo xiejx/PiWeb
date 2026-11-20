@@ -13,12 +13,28 @@
     <script>
         try {
             const saved = localStorage.getItem('piweb-theme');
-            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const mode = (saved === 'light' || saved === 'dark' || saved === 'system') ? saved : 'system';
+            const dark = mode === 'dark'
+                || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme-mode', mode);
         } catch (e) {}
     </script>
 </head>
 <body>
+{# The sign-in card leaves no room for the theme control: a dropup would cover
+   the submit button. It sits in the corner instead, like the navbar entry. #}
+<div class="position-fixed top-0 end-0 p-3">
+    <div class="dropdown">
+        <button type="button" class="btn btn-link btn-sm text-body-secondary text-decoration-none dropdown-toggle"
+                id="themeToggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-circle-half me-1" data-theme-icon></i>{{ t('nav.theme', 'Theme') }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeToggle">
+            {% include "partials/theme_menu.html" %}
+        </ul>
+    </div>
+</div>
 <div class="login-shell">
     <div class="card login-card border-0 shadow-lg">
         <div class="card-body p-4 p-sm-5">
@@ -60,10 +76,7 @@
                 </button>
             </form>
 
-            <div class="d-flex justify-content-between align-items-center mt-4 small text-body-secondary">
-                <span>{{ settings.login_user }}</span>
-                <button type="button" class="btn btn-link btn-sm p-0" id="themeToggle">{{ t('login.toggle_theme', 'Toggle theme') }}</button>
-            </div>
+            <div class="mt-4 small text-body-secondary">{{ settings.login_user }}</div>
         </div>
     </div>
 </div>

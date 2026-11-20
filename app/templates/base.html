@@ -13,8 +13,11 @@
     <script>
         try {
             const saved = localStorage.getItem('piweb-theme');
-            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const mode = (saved === 'light' || saved === 'dark' || saved === 'system') ? saved : 'system';
+            const dark = mode === 'dark'
+                || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme-mode', mode);
         } catch (e) {}
     </script>
     {% block head %}{% endblock %}
@@ -67,10 +70,16 @@
                         <span class="d-lg-none ms-1">{{ t('nav.system_info', 'System info') }}</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <button class="nav-link btn btn-link" type="button" id="themeToggle" title="{{ t('nav.theme', 'Light / dark theme') }}">
-                        <i class="bi bi-moon-stars" id="themeIcon"></i>
+                <li class="nav-item dropdown">
+                    <button class="nav-link btn btn-link dropdown-toggle" type="button" id="themeToggle"
+                            data-bs-toggle="dropdown" aria-expanded="false"
+                            title="{{ t('nav.theme', 'Theme') }}">
+                        <i class="bi bi-circle-half" data-theme-icon></i>
+                        <span class="d-lg-none ms-1">{{ t('nav.theme', 'Theme') }}</span>
                     </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeToggle">
+                        {% include "partials/theme_menu.html" %}
+                    </ul>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">

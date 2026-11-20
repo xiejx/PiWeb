@@ -380,7 +380,7 @@
   "auth.pw_title": "仍在使用默认密码。",
   "auth.pw_before": "请在",
   "auth.pw_after": "中修改 —— 出厂默认值是公开的。",
-  "nav.theme": "浅色 / 深色主题",
+  "nav.theme": "主题",
   "act.advanced": "—— 仅供高级用户",
   "act.commands": "命令",
   "act.confirm_cmd": "确定执行该命令？",
@@ -670,7 +670,6 @@
   "login.password": "密码",
   "login.totp": "两步验证码",
   "login.submit": "登录",
-  "login.toggle_theme": "切换主题",
   "setup.title": "首次设置 — PiWeb",
   "setup.heading": "PiWeb 首次设置",
   "setup.configured": "PiWeb 已完成配置。",
@@ -771,5 +770,8 @@
   "rpi.unmount_warning": "请确认没有进程正在使用其中的文件。",
   "wifi.confirm_disconnect": "断开当前的 Wi-Fi 连接？",
   "rpi.boot_confirm_warning": "修改启动文件可能导致树莓派无法启动。",
-  "rpi.boot_confirm_backup": "会先写入备份（{name}.piweb.bak）。"
+  "rpi.boot_confirm_backup": "会先写入备份（{name}.piweb.bak）。",
+  "theme.light": "浅色",
+  "theme.dark": "深色",
+  "theme.system": "跟随系统"
 }

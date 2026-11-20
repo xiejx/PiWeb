@@ -243,3 +243,12 @@ main {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+/* Theme picker: the check mark only shows on the option in use. */
+.theme-check {
+    visibility: hidden;
+}
+
+.dropdown-item.active .theme-check {
+    visibility: visible;
+}

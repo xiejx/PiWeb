@@ -1,0 +1,20 @@
+{# The three theme choices, for use inside a dropdown-menu. app.js handles the
+   clicks through [data-theme-set] and marks the active one. #}
+<li>
+    <button class="dropdown-item d-flex align-items-center gap-2" type="button" data-theme-set="light">
+        <i class="bi bi-sun"></i><span>{{ t('theme.light', 'Light') }}</span>
+        <i class="bi bi-check2 ms-auto theme-check"></i>
+    </button>
+</li>
+<li>
+    <button class="dropdown-item d-flex align-items-center gap-2" type="button" data-theme-set="dark">
+        <i class="bi bi-moon-stars"></i><span>{{ t('theme.dark', 'Dark') }}</span>
+        <i class="bi bi-check2 ms-auto theme-check"></i>
+    </button>
+</li>
+<li>
+    <button class="dropdown-item d-flex align-items-center gap-2" type="button" data-theme-set="system">
+        <i class="bi bi-circle-half"></i><span>{{ t('theme.system', 'Follow system') }}</span>
+        <i class="bi bi-check2 ms-auto theme-check"></i>
+    </button>
+</li>

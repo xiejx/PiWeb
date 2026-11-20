@@ -10,6 +10,16 @@
     <link href="/static/vendor/bootstrap.min.css?v={{ asset_version }}" rel="stylesheet">
     <link href="/static/vendor/bootstrap-icons.min.css?v={{ asset_version }}" rel="stylesheet">
     <link href="/static/css/app.css?v={{ asset_version }}" rel="stylesheet">
+    <script>
+        try {
+            const saved = localStorage.getItem('piweb-theme');
+            const mode = (saved === 'light' || saved === 'dark' || saved === 'system') ? saved : 'system';
+            const dark = mode === 'dark'
+                || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme-mode', mode);
+        } catch (e) {}
+    </script>
 </head>
 <body>
 <div class="login-shell">
