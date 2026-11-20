@@ -128,12 +128,9 @@ async def backup_restore(
         flash(request, "That file is not a PiWeb backup (invalid JSON).", "danger")
         return RedirectResponse("/backup", status_code=303)
 
-    # "gumcp_backup" is the legacy format key; accept it so backups made
-    # before the PiWeb rename can still be restored. New bundles use
-    # "piweb_backup".
     is_backup = (
         isinstance(payload, dict)
-        and bool(payload.get("piweb_backup") or payload.get("gumcp_backup"))
+        and bool(payload.get("piweb_backup"))
         and isinstance(payload.get("files"), dict)
     )
     if not is_backup:

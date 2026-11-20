@@ -61,11 +61,9 @@ def test_finds_schedule_with_current_marker():
     }
 
 
-def test_finds_schedule_with_legacy_marker():
+def test_ignores_the_old_pre_rename_marker():
     crontab = f"*/5 * * * * bash {SCRIPT_PATH} # gumcp-script:backup.sh\n"
-    assert scripts_with_schedules(StubExecutor(crontab), ["backup.sh"]) == {
-        "backup.sh": f"*/5 * * * * bash {SCRIPT_PATH}",
-    }
+    assert scripts_with_schedules(StubExecutor(crontab), ["backup.sh"]) == {}
 
 
 def test_ignores_unrelated_jobs_and_other_scripts():
@@ -86,7 +84,7 @@ def test_matches_each_script_exactly_even_with_shared_suffix():
             "30 2 * * * bash /home/pi/PiWeb/user_scripts/db-backup.sh "
             "# piweb-script:db-backup.sh",
             "0 * * * * python3 /home/pi/PiWeb/user_scripts/poll.py "
-            "# gumcp-script:poll.py",
+            "# piweb-script:poll.py",
         ]
     )
     found = scripts_with_schedules(

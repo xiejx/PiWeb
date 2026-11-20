@@ -20,7 +20,7 @@ from ..templating import render
 router = APIRouter()
 
 STARTED_AT = time.time()
-PACKAGES = ("fastapi", "uvicorn", "jinja2", "paramiko", "bcrypt")
+PACKAGES = ("fastapi", "uvicorn", "jinja2", "paramiko")
 
 
 def package_version(name: str) -> str:

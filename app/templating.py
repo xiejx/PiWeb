@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -86,39 +87,9 @@ def _service_class(state: str) -> str:
 
 
 def _bi_icon(name: str) -> str:
-    name = (name or "").strip().lower()
-    if name.startswith("fa-"):
-        name = name[3:]
-    mapping = {
-        "refresh": "arrow-clockwise",
-        "rotate-right": "arrow-clockwise",
-        "power-off": "power",
-        "play": "play-fill",
-        "stop": "stop-fill",
-        "terminal": "terminal",
-        "server": "server",
-        "database": "database",
-        "hdd-o": "hdd",
-        "microchip": "cpu",
-        "thermometer-half": "thermometer-half",
-        "wifi": "wifi",
-        "bolt": "lightning-charge",
-        "trash": "trash",
-        "trash-o": "trash",
-        "download": "download",
-        "upload": "upload",
-        "cog": "gear",
-        "gear": "gear",
-        "home": "house",
-        "dashboard": "speedometer2",
-        "list": "list-ul",
-        "clock-o": "clock",
-        "camera": "camera",
-        "music": "music-note-beamed",
-        "lightbulb-o": "lightbulb",
-        "plug": "plug",
-    }
-    return mapping.get(name, name or "lightning-charge")
+    """Button icons are stored as Bootstrap Icons names; pass them through."""
+    cleaned = re.sub(r"[^a-z0-9\-]", "", (name or "").strip().lower())
+    return cleaned or "lightning-charge"
 
 
 def _bs_style(style: str) -> str:

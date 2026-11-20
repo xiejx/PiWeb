@@ -47,8 +47,6 @@ def save(settings: Settings, buttons: list[dict]) -> str:
 
 def sanitize(post: dict) -> dict:
     icon = re.sub(r"[^a-z0-9\-]", "", str(post.get("button_icon", "")).lower())
-    if icon.startswith("fa-"):
-        icon = icon[3:]
     style = post.get("button_style", "")
     size = post.get("button_size", "")
     return {

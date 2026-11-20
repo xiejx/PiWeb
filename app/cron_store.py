@@ -131,15 +131,10 @@ def scripts_with_schedules(executor: Executor, script_names: list[str]) -> dict[
     current = read_user_crontab(executor)
     found: dict[str, str] = {}
     for name in script_names:
-        # Accept the legacy "# gumcp-script:" marker so pre-rename schedules stay
-        # visible; new/updated entries always use the PiWeb marker.
-        markers = (f"# piweb-script:{name}", f"# gumcp-script:{name}")
+        marker = f"# piweb-script:{name}"
         for line in current.splitlines():
-            for marker in markers:
-                if line.rstrip().endswith(marker):
-                    found[name] = line[: -len(f" {marker}")].strip()
-                    break
-            if name in found:
+            if line.rstrip().endswith(marker):
+                found[name] = line[: -len(f" {marker}")].strip()
                 break
     return found
 
@@ -150,13 +145,12 @@ def schedule_script(
     if not validate_schedule(schedule):
         return False, "Invalid cron schedule expression."
     marker = f"# piweb-script:{name}"
-    legacy_marker = f"# gumcp-script:{name}"
     script_path = BASE_DIR / "user_scripts" / name
     current = read_user_crontab(executor)
     kept = [
         line
         for line in current.splitlines()
-        if not line.rstrip().endswith((marker, legacy_marker))
+        if not line.rstrip().endswith(marker)
     ]
     kept.append(f"{schedule} {interpreter} {script_path} {marker}")
     text = "\n".join(kept) + "\n"
@@ -166,12 +160,11 @@ def schedule_script(
 
 def unschedule_script(executor: Executor, name: str) -> tuple[bool, str]:
     marker = f"# piweb-script:{name}"
-    legacy_marker = f"# gumcp-script:{name}"
     current = read_user_crontab(executor)
     kept = [
         line
         for line in current.splitlines()
-        if not line.rstrip().endswith((marker, legacy_marker))
+        if not line.rstrip().endswith(marker)
     ]
     if len(kept) == len(current.splitlines()):
         return False, "This script has no schedule."

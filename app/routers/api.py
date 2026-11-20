@@ -128,9 +128,3 @@ async def button_api_root(request: Request):
 )
 async def button_api_hash(request: Request, button_hash: str):
     return await _handle(request, button_hash)
-
-
-@router.api_route("/api.php", methods=["GET", "POST"], include_in_schema=False)
-async def button_api_legacy(request: Request):
-    """Keep old ?hash= automations working after the PHP removal."""
-    return await _handle(request)

@@ -30,7 +30,7 @@ from ..templating import render
 
 router = APIRouter()
 
-REQUIRED_PACKAGES = ("fastapi", "uvicorn", "jinja2", "paramiko", "bcrypt")
+REQUIRED_PACKAGES = ("fastapi", "uvicorn", "jinja2", "paramiko")
 
 DIR_FIXES = {
     "scripts_dir": "scripts_dir",

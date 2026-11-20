@@ -49,7 +49,7 @@
 - **系统检查** —— 检查运行环境、安全性、目录权限、执行后端与 GPIO 工具，对常见问题提供一键修复。
 - **运行信息** —— Python/操作系统/依赖版本、路径与脱敏后的配置。
 - **深色主题**、**菜单拖拽排序**，以及**五种语言**（英语、德语、乌克兰语、西班牙语、法语）。
-- **身份认证** —— 登录页、可选的 HTTP Basic Auth、可选 TOTP、密码哈希（bcrypt / pbkdf2）、暴力破解限速、空闲/绝对会话超时，以及登录审计日志。
+- **身份认证** —— 登录页、可选的 HTTP Basic Auth、可选 TOTP、密码哈希（pbkdf2）、暴力破解限速、空闲/绝对会话超时，以及登录审计日志。
 
 ***
 
@@ -145,7 +145,7 @@ sudo systemctl restart piweb
 | 段                  | 作用                                                                                     |
 | ------------------ | -------------------------------------------------------------------------------------- |
 | `[server]`         | 绑定地址/端口、根路径、是否信任来自 Nginx 的 `X-Real-IP`                                                 |
-| `[execution]`      | `local`（以服务用户身份通过 `sudo` 执行命令）或 `ssh`（Paramiko，类似 1.x 的行为）                             |
+| `[execution]`      | `local`（以服务用户身份通过 `sudo` 执行命令）或 `ssh`（Paramiko，可避免给服务用户 sudo）                             |
 | `[ssh]`            | `mode = "ssh"` 时的主机、端口、用户和密码                                                           |
 | `[auth]`           | 登录开关、用户名、密码/哈希、可选的 `check_system_user`、TOTP 密钥、`allow_unauthenticated`、应急 `update_key` |
 | `[auth.basic]`     | 可选的 HTTP Basic Auth                                                                    |
@@ -155,7 +155,7 @@ sudo systemctl restart piweb
 | `[ui]`             | 默认语言、仪表盘服务徽章、Button API 的 IP 白名单、debug 开关                                              |
 | `[modules.*]`      | 模块标题、分组、启用标志，以及外部模块的 `url` / `iframe`                                                  |
 
-密码可以是明文、`$2y$`/`$2b$` 开头的 bcrypt 哈希，或 `pbkdf2_sha256$...` 哈希。**强烈建议存储哈希**：
+密码可以是明文，或 `pbkdf2_sha256$...` 哈希。**强烈建议存储哈希**：
 
 ```bash
 sudo -u piweb /opt/piweb/.venv/bin/python - <<'PY'
@@ -230,14 +230,11 @@ sudo mv /home/pi/services /srv/services
 # 路径形式
 curl "http://raspberrypi/api/button/<key>"
 
-# 兼容 1.x 的旧形式（保证已有自动化继续可用）
-curl "http://raspberrypi/api.php?hash=<key>"
-
 # 把密钥放在请求头里，而不是 URL 中
 curl -H "X-PiWeb-Key: <key>" http://raspberrypi/api/button
 
 # POST 同样可用
-curl -X POST -d "hash=<key>" http://raspberrypi/api.php
+curl -X POST -d "hash=<key>" http://raspberrypi/api/button
 ```
 
 响应为 JSON：成功时形如 `{"success": true, "button": "...", "output": "..."}`，失败时形如 `{"success": false, "error": "..."}`。可用 `ui.api_allow_ips = ["192.168.1.0/24"]` 限制访问来源。每次调用都会写入 `command_logs/api_calls.log`，其中包含截断后的密钥、来源 IP 和 User-Agent。

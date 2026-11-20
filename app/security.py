@@ -12,7 +12,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import bcrypt
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders
@@ -29,7 +28,6 @@ PUBLIC_PREFIXES = (
     "/setup",
     "/health",
     "/api/",
-    "/api.php",
     "/update",
     "/modules/tehybug/track",
 )
@@ -49,17 +47,10 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(stored: str, given: str) -> bool:
-    """Accept our pbkdf2 format, legacy PHP bcrypt hashes, or cleartext."""
+    """Check a pbkdf2 hash, or compare cleartext when that is what is stored."""
     if not stored or not given:
         return False
     stored = stored.strip()
-    if stored.startswith(("$2a$", "$2b$", "$2y$")):
-        try:
-            return bcrypt.checkpw(
-                given.encode("utf-8"), stored.encode("utf-8")
-            )
-        except ValueError:
-            return False
     if stored.startswith("pbkdf2_sha256$"):
         try:
             _, iterations, salt, encoded = stored.split("$", 3)
