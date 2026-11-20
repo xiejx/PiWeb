@@ -182,6 +182,19 @@
 
 {% block scripts %}
 <script>
+    // Reason codes from /ajax/git_tags, so a copy-install or an unreachable
+    // GitHub does not surface as raw git (or sudo) output.
+    const TAG_PROBLEMS = {
+        not_a_repo: {{ t('act.tags_not_repo', 'This installation is not a git checkout, so it cannot fetch tags from GitHub. It was installed from a local copy — re-run installer.sh from a newer checkout to upgrade.')|tojson }},
+        no_remote: {{ t('act.tags_no_remote', "This checkout has no 'origin' remote, so there is nothing to fetch.")|tojson }},
+        permission: {{ t('act.tags_permission', 'No permission to write to this checkout — check that the service user owns the installation directory.')|tojson }},
+        network: {{ t('act.tags_network', 'Could not reach GitHub (network or DNS problem). Local tags are shown.')|tojson }},
+        auth: {{ t('act.tags_auth', 'GitHub rejected the credentials (private repository or expired token).')|tojson }},
+        git_missing: {{ t('act.tags_git_missing', 'git is not installed on this host.')|tojson }},
+        failed: {{ t('act.tags_failed', 'Could not fetch tags from GitHub: {error}')|tojson }}
+    };
+    const TAG_RELEASE = {{ t('act.release', 'Release {tag}')|tojson }};
+
     async function refreshTags() {
         try {
             const data = await PiWeb.api('/ajax/git_tags', { method: 'POST' });
@@ -191,12 +204,16 @@
             (data.tags || []).forEach(function (tag) {
                 const option = document.createElement('option');
                 option.value = tag;
-                option.textContent = 'Release ' + tag;
+                option.textContent = TAG_RELEASE.replace('{tag}', tag);
                 select.appendChild(option);
             });
             select.value = current;
-            if (data.error) PiWeb.toast('Fetched local tags; GitHub fetch failed: ' + data.error, 'warning');
-            else PiWeb.toast('Release list refreshed.');
+            if (data.ok) {
+                PiWeb.toast({{ t('act.tags_ok', 'Release list refreshed.')|tojson }});
+                return;
+            }
+            const text = TAG_PROBLEMS[data.reason] || TAG_PROBLEMS.failed;
+            PiWeb.toast(text.replace('{error}', data.error || ''), 'warning');
         } catch (error) {
             PiWeb.toast(error.message, 'error');
         }

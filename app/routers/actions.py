@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import time
 from pathlib import Path
 
@@ -21,9 +22,86 @@ RESERVED_LOGS = {"auth.log", "api_calls.log", "module_install.log"}
 
 def git_tags(executor) -> list[str]:
     result = executor.run(
-        f"git -C {BASE_DIR} tag --sort=-v:refname 2>/dev/null", timeout=15
+        f"git -C {shlex.quote(str(BASE_DIR))} tag --sort=-v:refname 2>/dev/null",
+        timeout=15,
     )
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def git_run(executor, args: str, timeout: float = 15):
+    """Run git against the deployed tree — deliberately without sudo.
+
+    The installer chowns the tree to the service user, so git does not need
+    root; running it as root would leave root-owned objects behind and break
+    the next update. sudo would also fail outright here: the service has no
+    terminal to answer a password prompt, which is what surfaces as
+    "sudo: a terminal is required to read the password".
+    """
+    return executor.run(f"git -C {shlex.quote(str(BASE_DIR))} {args} 2>&1", timeout=timeout)
+
+
+def git_repo_state(executor) -> dict[str, object]:
+    """Whether the deployed tree is a git checkout, and where it pulls from.
+
+    installer.sh rsyncs a local checkout when it is run from one, and only
+    clones when the target has no .git, so a normal install is often not a
+    repository at all — in that case the panel cannot update itself.
+    """
+    inside = git_run(executor, "rev-parse --is-inside-work-tree", timeout=10)
+    lines = [line.strip() for line in inside.stdout.splitlines() if line.strip()]
+    repo = bool(inside.ok and lines and lines[-1] == "true")
+    remote = ""
+    if repo:
+        result = git_run(executor, "remote get-url origin", timeout=10)
+        if result.ok and result.stdout.strip():
+            remote = result.stdout.strip().splitlines()[-1]
+    return {"repo": repo, "remote": remote}
+
+
+def git_update_command(target: str, state: dict[str, object]) -> tuple[str, str]:
+    """Build the update command for `target`, or explain why there is none.
+
+    Returns (command, error); the caller puts either into the result card.
+    """
+    if not state.get("repo"):
+        return "", (
+            "This installation is not a git checkout, so it cannot update itself. "
+            "It was installed from a local copy — re-run installer.sh from a newer "
+            "checkout to upgrade."
+        )
+    if not state.get("remote"):
+        return "", "This checkout has no 'origin' remote, so there is nothing to pull from."
+    repo = shlex.quote(str(BASE_DIR))
+    if target == "master":
+        return f"git -C {repo} pull --ff-only origin master 2>&1", ""
+    if TAG_RE.match(target):
+        return (
+            f"git -C {repo} fetch --tags --force origin 2>&1"
+            f" && git -C {repo} reset --hard refs/tags/{target} 2>&1"
+        ), ""
+    return "", "Invalid release tag."
+
+
+def classify_git_error(output: str) -> str:
+    """Map git's wording onto a reason the UI can translate."""
+    text = (output or "").lower()
+    if "command not found" in text or "git: not found" in text:
+        return "git_missing"
+    if "not a git repository" in text:
+        return "not_a_repo"
+    if "does not appear to be a git repository" in text or "no such remote" in text:
+        return "no_remote"
+    if ("permission denied" in text or "unable to create" in text
+            or "read-only file system" in text or "could not open" in text):
+        return "permission"
+    if ("could not resolve host" in text or "network is unreachable" in text
+            or "connection timed out" in text or "temporary failure in name resolution" in text
+            or "connection refused" in text):
+        return "network"
+    if ("authentication failed" in text or "could not read username" in text
+            or "permission to" in text or "access denied" in text):
+        return "auth"
+    return "failed"
 
 
 def list_command_logs(settings) -> list[dict[str, object]]:
@@ -107,17 +185,9 @@ def actions_run(
     elif action == "shutdown":
         command = "sudo poweroff"
     elif action == "git_pull":
-        target = git_target.strip() or "master"
-        base = f"cd {BASE_DIR}"
-        if target == "master":
-            command = f"{base} && sudo git pull origin master 2>&1"
-        elif TAG_RE.match(target):
-            command = (
-                f"{base} && sudo git fetch --tags origin 2>&1"
-                f" && sudo git reset --hard refs/tags/{target} 2>&1"
-            )
-        else:
-            error = "Invalid release tag."
+        command, error = git_update_command(
+            git_target.strip() or "master", git_repo_state(executor)
+        )
     elif action == "cmd":
         if cmd.strip():
             command = cmd.strip()
@@ -219,11 +289,24 @@ def delete_log(request: Request, file: str = Form("")):
 def refresh_git_tags(request: Request):
     settings = request.app.state.settings
     executor = get_executor(settings)
-    result = executor.run(f"cd {BASE_DIR} && sudo git fetch --tags origin 2>&1", timeout=90)
+    tags = git_tags(executor)
+    state = git_repo_state(executor)
+
+    # Answer "why" instead of pasting git's output: a copy-install and a
+    # password-prompting sudo look the same to the operator otherwise.
+    if not state["repo"]:
+        return JSONResponse({"ok": False, "reason": "not_a_repo", "tags": tags, "error": ""})
+    if not state["remote"]:
+        return JSONResponse({"ok": False, "reason": "no_remote", "tags": tags, "error": ""})
+
+    result = git_run(executor, "fetch --tags --force origin", timeout=90)
+    if result.ok:
+        return JSONResponse({"ok": True, "tags": git_tags(executor), "error": ""})
     return JSONResponse(
         {
-            "ok": True,
-            "tags": git_tags(executor),
-            "error": "" if result.ok else result.output[-500:],
+            "ok": False,
+            "reason": classify_git_error(result.output),
+            "tags": tags,
+            "error": result.output[-400:],
         }
     )

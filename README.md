@@ -93,6 +93,17 @@ ssh -L 8000:127.0.0.1:8000 pi@raspberrypi
 
 设置表单会把**哈希后的密码**写回 `config.toml` 的 `[auth]` 段。
 
+### 面板内更新（需要 git 检出）
+
+「操作 → 更新 PiWeb」用 `git fetch` / `git pull` 升级，所以只对 **git 检出**的安装有效。
+`installer.sh` 在它自己不在 `/opt/piweb` 时，是用 rsync 把本地目录拷过去的（不带 `.git`），
+这种安装点「获取标签」会提示「当前安装不是 git 检出」。这类安装的升级方式是在较新的检出里
+重新运行 `sudo bash installer.sh`，由它同步代码并重启服务。
+
+git 命令以服务用户身份执行，**不经过 sudo**：安装器已经把 `/opt/piweb` 交给 `piweb`，
+用 root 跑 git 反而会留下 root 属主的对象，让下一次更新失败。`sudoers` 里也特意没有放行
+`git`（`sudo git` 等于给面板一个 root 提权入口）。
+
 ***
 
 ## 手动安装

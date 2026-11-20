@@ -1,6 +1,10 @@
 # Sudoers drop-in for PiWeb (installed as /etc/sudoers.d/piweb).
 # Adjust the command list to your needs; NOPASSWD is required because the app
 # has no terminal to type a password.
+#
+# git is deliberately absent. The panel runs git as the service user against
+# its own checkout (installer.sh chowns it), and "sudo git" would be a root
+# escalation: git executes hooks, pager and alias commands from the tree.
 Defaults:piweb !requiretty
 
 piweb ALL=(ALL) NOPASSWD: /usr/bin/systemctl, /usr/sbin/service, \

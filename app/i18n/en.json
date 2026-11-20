@@ -773,5 +773,13 @@
   "rpi.boot_confirm_backup": "A backup ({name}.piweb.bak) will be written first.",
   "theme.light": "Light",
   "theme.dark": "Dark",
-  "theme.system": "Follow system"
+  "theme.system": "Follow system",
+  "act.tags_ok": "Release list refreshed.",
+  "act.tags_not_repo": "This installation is not a git checkout, so it cannot fetch tags from GitHub. It was installed from a local copy — re-run installer.sh from a newer checkout to upgrade.",
+  "act.tags_no_remote": "This checkout has no 'origin' remote, so there is nothing to fetch.",
+  "act.tags_permission": "No permission to write to this checkout — check that the service user owns the installation directory.",
+  "act.tags_network": "Could not reach GitHub (network or DNS problem). Local tags are shown.",
+  "act.tags_auth": "GitHub rejected the credentials (private repository or expired token).",
+  "act.tags_git_missing": "git is not installed on this host.",
+  "act.tags_failed": "Could not fetch tags from GitHub: {error}"
 }

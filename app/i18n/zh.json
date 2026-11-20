@@ -773,5 +773,13 @@
   "rpi.boot_confirm_backup": "会先写入备份（{name}.piweb.bak）。",
   "theme.light": "浅色",
   "theme.dark": "深色",
-  "theme.system": "跟随系统"
+  "theme.system": "跟随系统",
+  "act.tags_ok": "标签列表已刷新。",
+  "act.tags_not_repo": "当前安装不是 git 检出（由本地拷贝方式安装），无法从 GitHub 获取标签。要升级请用较新的检出版本重新运行 installer.sh。",
+  "act.tags_no_remote": "该检出没有 origin 远程仓库，没有可获取的内容。",
+  "act.tags_permission": "无权写入该检出 —— 请确认安装目录的属主是服务用户。",
+  "act.tags_network": "连不上 GitHub（网络或 DNS 问题），已显示本地标签。",
+  "act.tags_auth": "GitHub 认证失败（私有仓库或凭据过期）。",
+  "act.tags_git_missing": "本机没有安装 git。",
+  "act.tags_failed": "从 GitHub 获取标签失败：{error}"
 }
