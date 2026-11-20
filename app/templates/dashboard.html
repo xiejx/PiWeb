@@ -82,22 +82,22 @@
 <div class="row g-3 mt-0">
     <div class="col-12 col-lg-4">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('dash.system', 'System information') }}</div>
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i>{{ t('dash.sysinfo', 'System information') }}</div>
             <div class="card-body">
                 <dl class="row mb-0 small">
-                    <dt class="col-5 text-body-secondary">Hostname</dt><dd class="col-7 mono">{{ d.info.hostname }}</dd>
-                    <dt class="col-5 text-body-secondary">OS</dt><dd class="col-7">{{ d.info.os }}</dd>
-                    <dt class="col-5 text-body-secondary">Kernel</dt><dd class="col-7 mono">{{ d.info.kernel }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.hostname', 'Hostname') }}</dt><dd class="col-7 mono">{{ d.info.hostname }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.os', 'OS') }}</dt><dd class="col-7">{{ d.info.os }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.kernel', 'Kernel') }}</dt><dd class="col-7 mono">{{ d.info.kernel }}</dd>
                     {% if d.info.model %}
-                    <dt class="col-5 text-body-secondary">Model</dt><dd class="col-7">{{ d.info.model }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.model', 'Model') }}</dt><dd class="col-7">{{ d.info.model }}</dd>
                     {% endif %}
-                    <dt class="col-5 text-body-secondary">CPU</dt><dd class="col-7">{{ d.info.cpu }}</dd>
-                    <dt class="col-5 text-body-secondary">Cores</dt><dd class="col-7">{{ d.info.cores }}</dd>
-                    <dt class="col-5 text-body-secondary">Uptime</dt><dd class="col-7">{{ d.info.uptime }}</dd>
-                    <dt class="col-5 text-body-secondary">Load</dt><dd class="col-7 mono">{{ d.info.load }}</dd>
-                    <dt class="col-5 text-body-secondary">Processes</dt><dd class="col-7">{{ d.processes }}</dd>
-                    <dt class="col-5 text-body-secondary">Now</dt><dd class="col-7 mono">{{ d.clock.datetime }}</dd>
-                    <dt class="col-5 text-body-secondary">Timezone</dt><dd class="col-7 mono">{{ d.clock.timezone }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.cpu_label', 'CPU') }}</dt><dd class="col-7">{{ d.info.cpu }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.cores', 'Cores') }}</dt><dd class="col-7">{{ d.info.cores }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.uptime', 'Uptime') }}</dt><dd class="col-7">{{ d.info.uptime }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.load', 'Load') }}</dt><dd class="col-7 mono">{{ d.info.load }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.processes', 'Processes') }}</dt><dd class="col-7">{{ d.processes }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.now', 'Now') }}</dt><dd class="col-7 mono">{{ d.clock.datetime }}</dd>
+                    <dt class="col-5 text-body-secondary">{{ t('dash.timezone', 'Timezone') }}</dt><dd class="col-7 mono">{{ d.clock.timezone }}</dd>
                     <dt class="col-5 text-body-secondary">NTP</dt>
                     <dd class="col-7">
                         {% if d.clock.ntp_synced is none %}
@@ -121,7 +121,7 @@
                     <thead>
                     <tr>
                         <th>PID</th><th>{{ t('common.user', 'User') }}</th><th>CPU</th><th>MEM</th>
-                        <th>{{ t('proc.command', 'Command') }}</th>
+                        <th>{{ t('common.command', 'Command') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -144,7 +144,7 @@
 
     <div class="col-12 col-lg-7">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-hdd me-1"></i>{{ t('dash.disks', 'Storage') }}</div>
+            <div class="card-header"><i class="bi bi-hdd me-1"></i>{{ t('dash.disk_info', 'Storage') }}</div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
                     <thead><tr><th>{{ t('common.mount', 'Mount') }}</th><th>{{ t('common.size', 'Size') }}</th><th>{{ t('dash.used', 'Used') }}</th><th>{{ t('dash.available', 'Available') }}</th><th>%</th></tr></thead>
@@ -181,7 +181,7 @@
 
     <div class="col-12 col-lg-5">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-people me-1"></i>{{ t('dash.logged_in', 'Logged-in users') }}</div>
+            <div class="card-header"><i class="bi bi-people me-1"></i>{{ t('dash.users', 'Logged-in users') }}</div>
             <div class="card-body">
                 {% if d.users %}
                     <ul class="list-unstyled mb-0">
@@ -240,6 +240,15 @@
     (function () {
         const canvas = document.getElementById('liveChart');
         if (!canvas || !window.EventSource) return;
+
+        const T = {
+            tempCool: {{ t('dash.temp_cool', 'Cool')|tojson }},
+            tempWarm: {{ t('dash.temp_warm', 'Warm')|tojson }},
+            tempHot: {{ t('dash.temp_hot', 'Hot')|tojson }},
+            usageNote: {{ t('dash.usage_note', '{percent}% of {total} used')|tojson }},
+            loadWindow: {{ t('dash.load_window', '(5 / 15 min)')|tojson }},
+            coresNote: {{ t('dash.cores_note', '{n} cores')|tojson }}
+        };
 
         const maxPoints = 90; // 3 minutes at one sample every 2 s
         const points = [];
@@ -328,21 +337,24 @@
 
             setText('liveTemp', Number(data.temp).toFixed(1) + ' °C');
             setBar('liveTempBar', data.temp);
-            setText('liveTempNote', data.temp < 60 ? 'Cool' : data.temp < 75 ? 'Warm' : 'Hot');
+            setText('liveTempNote', data.temp < 60 ? T.tempCool : (data.temp < 75 ? T.tempWarm : T.tempHot));
 
             setText('liveLoad', loadOne.toFixed(2));
             setBar('liveLoadBar', loadOne / cores * 100);
             if (data.load && data.load.length >= 3) {
-                setText('liveLoadNote', data.load[1] + ' · ' + data.load[2] + ' (5 / 15 min) · ' + cores + ' cores');
+                setText('liveLoadNote', data.load[1] + ' · ' + data.load[2] + ' ' + T.loadWindow + ' · '
+                    + T.coresNote.replace('{n}', cores));
             }
 
             setText('liveMem', data.mem_used_h);
             setBar('liveMemBar', data.mem_percent);
-            setText('liveMemNote', data.mem_percent + '% of ' + data.mem_total_h + ' used');
+            setText('liveMemNote', T.usageNote.replace('{percent}', data.mem_percent)
+                .replace('{total}', data.mem_total_h));
 
             setText('liveDisk', data.disk_used_h);
             setBar('liveDiskBar', data.disk_percent);
-            setText('liveDiskNote', data.disk_percent + '% of ' + data.disk_total_h + ' used');
+            setText('liveDiskNote', T.usageNote.replace('{percent}', data.disk_percent)
+                .replace('{total}', data.disk_total_h));
 
             setText('liveNow', data.now);
             setText('liveChartClock', data.now);

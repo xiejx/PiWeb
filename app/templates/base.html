@@ -97,13 +97,17 @@
     {% if open_mode %}
         <div class="alert alert-danger d-flex gap-2 align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill fs-4"></i>
-            <div><strong>Authentication is disabled.</strong> Anyone who can reach this panel can run commands
-                as <code>{{ settings.ssh_user if execution_mode is not defined else settings.ssh_user }}</code> on this host.</div>
+            <div><strong>{{ t('auth.banner_title', 'Authentication is disabled.') }}</strong>
+                {{ t('auth.banner_body', 'Anyone who can reach this panel can run commands as') }}
+                <code>{{ settings.ssh_user }}</code>
+                {{ t('auth.banner_tail', 'on this host.') }}</div>
         </div>
     {% elif default_credentials %}
         <div class="alert alert-warning d-flex gap-2 align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill fs-4"></i>
-            <div><strong>Default password in use.</strong> Change it in <code>config.toml</code> — the shipped defaults are public.</div>
+            <div><strong>{{ t('auth.pw_title', 'Default password in use.') }}</strong>
+                {{ t('auth.pw_before', 'Change it in') }} <code>config.toml</code>
+                {{ t('auth.pw_after', '— the shipped defaults are public.') }}</div>
         </div>
     {% endif %}
 
