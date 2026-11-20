@@ -61,6 +61,13 @@
             </ul>
             <ul class="navbar-nav align-items-lg-center gap-lg-1">
                 <li class="nav-item">
+                    <a class="nav-link {% if current_path == '/system-info' %}active{% endif %}" href="/system-info"
+                       title="{{ t('info.title', 'Runtime information') }}">
+                        <i class="bi bi-info-circle"></i>
+                        <span class="d-lg-none ms-1">{{ t('nav.system_info', 'System info') }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link btn btn-link" type="button" id="themeToggle" title="{{ t('nav.theme', 'Light / dark theme') }}">
                         <i class="bi bi-moon-stars" id="themeIcon"></i>
                     </button>
