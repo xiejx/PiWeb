@@ -172,7 +172,10 @@ def _write_boot(path: Path, content: str, executor):
 # ── Temperature / CPU-frequency history ─────────────────────────────────────
 
 def _history_file(settings) -> Path:
-    return settings.data_dir / "rpi_metrics_history.json"
+    # The temperature/frequency history is a short-lived cache, so keep it in
+    # command_logs/ (tmpfs on systems configured that way) instead of wearing
+    # the SD card every 30 seconds.
+    return settings.command_logs_dir / "rpi_metrics_history.json"
 
 
 def _load_history(path: Path) -> list[dict[str, float | int]]:
