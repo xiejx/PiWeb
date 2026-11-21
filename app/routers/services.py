@@ -4,7 +4,7 @@ import re
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from ..executor import get_executor
 from ..security import auth_log, client_ip
@@ -15,6 +15,7 @@ from ..templating import flash, render
 router = APIRouter()
 
 NAME_RE = re.compile(r"^[a-zA-Z0-9_.@:-]+$")
+ALLOWED_LOG_LINES = {100, 200, 500, 1000, 2000}
 
 # systemctl is the only interface — PiWeb no longer speaks SysV.
 ACTIONS = {"start", "stop", "restart", "enable", "disable"}
@@ -172,6 +173,36 @@ def services_partial(request: Request, q: str = "", state: str = "all"):
         "partials/services_table.html",
         **service_view(get_executor(settings), q, state),
     )
+
+
+@router.get("/ajax/services/status")
+def service_status(request: Request, unit: str = ""):
+    settings = request.app.state.settings
+    executor = get_executor(settings)
+    unit = unit.strip()
+    if not NAME_RE.match(unit):
+        return JSONResponse({"ok": False, "error": "Invalid unit name"}, status_code=400)
+    result = executor.run_argv(["systemctl", "status", unit, "--no-pager", "-l"], timeout=30)
+    output = (result.stdout + result.stderr).strip() or "(no output)"
+    return JSONResponse({"ok": True, "output": output[:400_000]})
+
+
+@router.get("/ajax/services/logs")
+def service_logs(request: Request, unit: str = "", lines: int = 200):
+    settings = request.app.state.settings
+    executor = get_executor(settings)
+    unit = unit.strip()
+    if not NAME_RE.match(unit):
+        return JSONResponse({"ok": False, "error": "Invalid unit name"}, status_code=400)
+    if lines not in ALLOWED_LOG_LINES:
+        lines = 200
+    # -q keeps journalctl's "not seeing other users" hint out of the output;
+    # --no-pager avoids waiting for a pager that has no terminal here.
+    result = executor.run_argv(
+        ["journalctl", "-u", unit, "-n", str(lines), "--no-pager", "-q"], timeout=30
+    )
+    output = (result.stdout + result.stderr).strip() or "(no matching lines)"
+    return JSONResponse({"ok": True, "output": output[:400_000]})
 
 
 @router.post("/services/action")

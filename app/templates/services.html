@@ -46,4 +46,87 @@
         <input type="hidden" name="state" value="{{ state }}">
     </form>
 {% endfor %}
+
+<div class="modal fade" id="svcDetailModal" tabindex="-1" aria-labelledby="svcDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="svcDetailTitle">
+                    <i class="bi bi-info-circle me-1"></i><span id="svcDetailUnit" class="mono"></span>
+                    <span class="badge text-bg-secondary ms-2" id="svcDetailKind"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('common.close', 'Close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2 small" id="svcDetailToolbar">
+                    <label class="d-flex align-items-center gap-1" id="svcDetailLinesWrap">
+                        {{ t('svc.logs.lines', 'Lines') }}
+                        <select class="form-select form-select-sm" id="svcDetailLines" style="width: auto">
+                            <option>100</option><option selected>200</option><option>500</option>
+                            <option>1000</option><option>2000</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="svcDetailReload">
+                        <i class="bi bi-arrow-clockwise me-1"></i>{{ t('common.refresh', 'Refresh') }}
+                    </button>
+                </div>
+                <pre class="terminal mb-0" id="svcDetailOutput" style="max-height: 65vh; overflow: auto; font-size: 12px">{{ t('common.loading', 'Loading…') }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    "use strict";
+    const api = window.PiWeb;
+    const T = {
+        status: {{ t('svc.status', 'Status')|tojson }},
+        logs: {{ t('svc.logs', 'Logs')|tojson }},
+        loading: {{ t('common.loading', 'Loading…')|tojson }},
+        failed: {{ t('svc.detail_failed', 'Could not load this detail.')|tojson }}
+    };
+    let currentUnit = '';
+    let currentKind = '';
+    let detailModal = null;
+
+    async function loadDetail() {
+        if (!currentUnit) return;
+        const body = document.getElementById('svcDetailOutput');
+        body.textContent = T.loading;
+        const isLogs = currentKind === 'logs';
+        document.getElementById('svcDetailLinesWrap').classList.toggle('d-none', !isLogs);
+        try {
+            const url = isLogs
+                ? '/ajax/services/logs?unit=' + encodeURIComponent(currentUnit) + '&lines=' +
+                  encodeURIComponent(document.getElementById('svcDetailLines').value)
+                : '/ajax/services/status?unit=' + encodeURIComponent(currentUnit);
+            const data = await api.api(url);
+            body.textContent = (data && data.ok) ? data.output : ((data && data.error) || T.failed);
+        } catch (err) {
+            body.textContent = err.message || T.failed;
+        }
+    }
+
+    function openDetail(unit, kind) {
+        currentUnit = unit;
+        currentKind = kind;
+        document.getElementById('svcDetailUnit').textContent = unit;
+        document.getElementById('svcDetailKind').textContent = kind === 'logs' ? T.logs : T.status;
+        if (!detailModal) detailModal = new bootstrap.Modal(document.getElementById('svcDetailModal'));
+        detailModal.show();
+        loadDetail();
+    }
+
+    // Delegated so the buttons keep working after htmx swaps in a fresh table.
+    document.body.addEventListener('click', function (event) {
+        const btn = event.target.closest('.svc-detail-btn');
+        if (btn) openDetail(btn.dataset.unit, btn.dataset.kind);
+    });
+    document.getElementById('svcDetailReload').addEventListener('click', loadDetail);
+    document.getElementById('svcDetailLines').addEventListener('change', loadDetail);
+})();
+</script>
 {% endblock %}

@@ -78,6 +78,14 @@ class SystemctlStub:
             return CommandResult(stdout=self.units, returncode=0)
         return CommandResult(stdout="", returncode=1)
 
+    def run_argv(self, argv, timeout: float = 30.0, input: str | None = None) -> CommandResult:
+        self.commands.append(" ".join(str(part) for part in argv))
+        if "status" in argv:
+            return CommandResult(stdout="● ssh.service - OpenBSD Secure Shell server\n   Active: active (running)", returncode=0)
+        if "journalctl" in argv:
+            return CommandResult(stdout="Nov 21 10:00:00 pi sshd[1]: Accepted publickey for pi", returncode=0)
+        return CommandResult(stdout="", returncode=1)
+
 
 def section_map(view: dict) -> dict[str, dict]:
     return {section["key"]: section for section in view["sections"]}
@@ -239,6 +247,44 @@ def test_unit_tables_have_a_scroll_cap(client: TestClient):
     # The header stays put while a long table is scrolled.
     assert ".svc-table-scroll thead th" in css
     assert "position: sticky" in css
+
+
+def test_status_endpoint_returns_systemctl_output(client: TestClient):
+    data = client.get("/ajax/services/status", params={"unit": "ssh.service"}).json()
+    assert data["ok"] is True
+    assert "ssh.service" in data["output"]
+    assert "Active: active (running)" in data["output"]
+    assert any(cmd.startswith("systemctl status ssh.service") for cmd in client.stub.commands)
+
+
+def test_logs_endpoint_returns_journal_output(client: TestClient):
+    data = client.get("/ajax/services/logs", params={"unit": "ssh.service", "lines": 500}).json()
+    assert data["ok"] is True
+    assert "sshd[1]" in data["output"]
+    assert any(
+        cmd.startswith("journalctl -u ssh.service -n 500") for cmd in client.stub.commands
+    )
+
+
+def test_detail_endpoints_reject_bad_unit_names(client: TestClient):
+    for path in ("/ajax/services/status", "/ajax/services/logs"):
+        response = client.get(path, params={"unit": "ssh; rm -rf /"})
+        assert response.status_code == 400
+        assert response.json()["ok"] is False
+
+
+def test_logs_endpoint_clamps_line_count(client: TestClient):
+    client.get("/ajax/services/logs", params={"unit": "cron.service", "lines": 99999})
+    assert any("-n 200" in cmd for cmd in client.stub.commands)
+
+
+def test_page_wires_status_and_logs_buttons(client: TestClient):
+    body = client.get("/services").text
+    assert 'data-kind="status"' in body
+    assert 'data-kind="logs"' in body
+    assert 'id="svcDetailModal"' in body
+    assert "/ajax/services/status?unit=" in body
+    assert "/ajax/services/logs?unit=" in body
 
 
 def test_action_runs_systemctl_against_the_full_unit_name(client: TestClient):

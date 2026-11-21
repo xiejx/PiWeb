@@ -67,15 +67,15 @@ if ! id "$PIWEB_USER" >/dev/null 2>&1; then
 fi
 sudo mkdir -p "$PIWEB_DIR"
 sudo chown "$PIWEB_USER:$PIWEB_USER" "$PIWEB_DIR"
-for grp in gpio video i2c spi docker; do
+for grp in gpio video i2c spi docker adm systemd-journal; do
     if getent group "$grp" >/dev/null 2>&1; then
         sudo usermod -aG "$grp" "$PIWEB_USER" || true
     fi
 done
-# The Docker module talks to /var/run/docker.sock through the docker group. The
-# group change only applies to processes started afterwards, so the service is
-# (re)started below — re-run `sudo systemctl restart piweb` if you add the group
-# to an existing installation.
+# Group membership (docker socket for the Docker module, adm/systemd-journal for
+# reading the systemd journal on the Logs page) only applies to processes started
+# afterwards, so the service is (re)started below — re-run
+# `sudo systemctl restart piweb` if you add a group to an existing installation.
 if getent group docker >/dev/null 2>&1; then
     info "Docker detected — $PIWEB_USER can use the Docker module."
 else

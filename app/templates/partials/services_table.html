@@ -84,6 +84,16 @@
                             <button type="submit" form="svcAction-start" name="sname" value="{{ r.unit }}"
                                     class="btn btn-sm btn-outline-success">{{ t('svc.start', 'Start') }}</button>
                         {% endif %}
+                        <button type="button" class="btn btn-sm btn-outline-info svc-detail-btn"
+                                data-unit="{{ r.unit }}" data-kind="status"
+                                title="{{ t('svc.status', 'Status') }}" aria-label="{{ t('svc.status', 'Status') }}">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary svc-detail-btn"
+                                data-unit="{{ r.unit }}" data-kind="logs"
+                                title="{{ t('svc.logs', 'Logs') }}" aria-label="{{ t('svc.logs', 'Logs') }}">
+                            <i class="bi bi-file-text"></i>
+                        </button>
                     </td>
                 </tr>
             {% endfor %}

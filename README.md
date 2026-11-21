@@ -73,7 +73,7 @@ bash ./installer.sh
 安装器会：
 
 1. 安装 `git`、`python3-venv`、`nginx` 以及 WiringPi / `raspi-gpio`；
-2. 创建 `piweb` 服务用户，并将其加入 `gpio`、`video`、`i2c`、`spi` 和 `docker` 组；
+2. 创建 `piweb` 服务用户，并将其加入 `gpio`、`video`、`i2c`、`spi`、`docker`、`adm` 和 `systemd-journal` 组（后两者用于读取 systemd journal 日志）；
 3. 创建 `/opt/piweb/.venv` 并安装 `requirements.txt`；
 4. 写入 `config.toml`（安装时会**提示输入管理员密码**，留空则随机生成），以及面板所需命令的 `sudoers` 配置；
 5. 安装并启动 `piweb.service`（Uvicorn）和 Nginx 站点。

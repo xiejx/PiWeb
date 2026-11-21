@@ -810,5 +810,9 @@
   "dock.networks.yes": "是",
   "dock.networks.no": "否",
   "wifi.password_prompt": "\"{ssid}\" 的密码（留空则使用已保存的配置）：",
-  "wifi.password_title": "Wi-Fi 密码"
+  "wifi.password_title": "Wi-Fi 密码",
+  "svc.status": "状态",
+  "svc.logs": "日志",
+  "svc.logs.lines": "行数",
+  "svc.detail_failed": "无法加载该详情。"
 }
