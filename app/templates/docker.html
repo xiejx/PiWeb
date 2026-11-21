@@ -411,6 +411,7 @@
         confirmRemoveImage: {{ t('dock.confirm.remove_image', 'Remove this image?')|tojson }},
         confirmPrune: {{ t('dock.confirm.prune', 'Delete all unused resources of the selected kinds?')|tojson }},
         confirmDown: {{ t('dock.confirm.compose_down', 'Stop and remove this stack? Containers will be deleted.')|tojson }},
+        confirmDownService: {{ t('dock.confirm.compose_down_service', 'Stop and remove this service? Its container will be deleted.')|tojson }},
         confirmRemoveVolume: {{ t('dock.confirm.remove_volume', 'Remove this volume? Data inside it is lost.')|tojson }},
         confirmRemoveNetwork: {{ t('dock.confirm.remove_network', 'Remove this network?')|tojson }},
         renamePrompt: {{ t('dock.action.rename_prompt', 'New container name:')|tojson }},
@@ -861,8 +862,18 @@
             const list = el('ul', 'list-unstyled mb-2 small');
             project.services.forEach((service) => {
                 const li = el('li', 'd-flex justify-content-between align-items-center gap-2');
-                li.appendChild(el('span', 'mono', service.name));
-                li.appendChild(stateBadge(service.state, service.health));
+                li.appendChild(el('span', 'mono text-break', service.name));
+                const controls = el('span', 'd-inline-flex align-items-center gap-1 flex-shrink-0');
+                controls.appendChild(stateBadge(service.state, service.health));
+                const svcUp = button(T.labelUp, 'bi-play-fill', 'success',
+                    () => composeAction(project, 'up', service.name));
+                const svcDown = button(T.labelDown, 'bi-trash', 'danger', async () => {
+                    if (!(await api.confirm(T.confirmDownService))) return;
+                    composeAction(project, 'down', service.name);
+                });
+                controls.appendChild(svcUp);
+                controls.appendChild(svcDown);
+                li.appendChild(controls);
                 list.appendChild(li);
             });
             body.appendChild(list);
@@ -882,7 +893,7 @@
             footer.appendChild(file);
 
             if (!composeEnabled) {
-                Array.from(footer.querySelectorAll('button')).forEach((btn) => {
+                Array.from(card.querySelectorAll('button')).forEach((btn) => {
                     if (btn !== file) btn.disabled = true;
                 });
             }
@@ -904,11 +915,13 @@
         }
     }
 
-    async function composeAction(project, act) {
+    async function composeAction(project, act, service) {
         try {
+            const body = { project: project.name, act: act };
+            if (service) body.service = service;
             const data = await api.api('/ajax/docker/compose/action', {
                 method: 'POST',
-                body: { project: project.name, act: act }
+                body: body
             });
             if (data.ok) watchTask(data.id, data.label);
             else api.toast(describeFailure(data, 'Action failed'), 'error');

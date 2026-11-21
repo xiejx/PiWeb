@@ -479,6 +479,25 @@ def test_compose_down_can_remove_volumes(tmp_path: Path):
     assert args[-2:] == ["down", "--volumes"]
 
 
+def test_compose_argv_targets_single_service(tmp_path: Path):
+    client = Docker(make_settings(tmp_path), Stub())
+    up, error = client.compose_argv("services", "up", service="cloudreve")
+    assert error == ""
+    assert up[-3:] == ["up", "-d", "cloudreve"]
+    down, error = client.compose_argv("services", "down", service="xunlei")
+    assert error == ""
+    assert down[-2:] == ["down", "xunlei"]
+
+
+def test_compose_argv_rejects_unknown_or_misused_service(tmp_path: Path):
+    client = Docker(make_settings(tmp_path), Stub())
+    assert client.compose_argv("services", "up", service="nosuch")[1] == "Unknown service in project"
+    assert client.compose_argv("services", "up", service="bad name")[1] == "Invalid service name"
+    assert client.compose_argv("services", "restart", service="xunlei")[1] == (
+        "Service target is only supported for up and down"
+    )
+
+
 def test_compose_rejects_paths_outside_the_whitelist(tmp_path: Path):
     client = Docker(make_settings(tmp_path, compose_dirs=["/srv/stacks"]), Stub())
     args, error = client.compose_argv("services", "up")

@@ -401,13 +401,19 @@ async def docker_compose_action(request: Request):
     payload = await _payload(request)
     project = str(payload.get("project", "")).strip()
     act = str(payload.get("act", "")).strip()
+    service = str(payload.get("service", "")).strip()
     if not valid_name(project):
         return _failure("Invalid project name")
+    if service and not valid_name(service):
+        return _failure("Invalid service name")
     if act not in COMPOSE_ACTIONS:
         return _failure("Unknown action")
 
     args, error = docker.compose_argv(
-        project, act, remove_volumes=bool(payload.get("remove_volumes"))
+        project,
+        act,
+        remove_volumes=bool(payload.get("remove_volumes")),
+        service=service,
     )
     if error:
         if error.startswith("EACCES:"):
@@ -421,9 +427,10 @@ async def docker_compose_action(request: Request):
                 status_code=403,
             )
         return _failure(error)
-    _audit(request, settings, f"compose {act} {project}")
+    target = f"{project}/{service}" if service else project
+    _audit(request, settings, f"compose {act} {target}")
     return JSONResponse(
-        docker.start_task(docker.argv(*args), f"compose {act} {project}")
+        docker.start_task(docker.argv(*args), f"compose {act} {target}")
     )
 
 

@@ -308,6 +308,7 @@
   "dock.confirm.remove_volume": "删除这个卷？卷内数据会丢失。",
   "dock.confirm.remove_network": "删除这个网络？",
   "dock.confirm.compose_down": "停止并删除这个项目？容器会被删除。",
+  "dock.confirm.compose_down_service": "停止并删除这个服务？它的容器会被删除。",
   "dock.confirm.prune": "删除所选类别下所有未使用的资源？",
   "dock.reason.missing": "这台主机没有安装 Docker。",
   "dock.reason.daemon": "Docker 守护进程未运行。",

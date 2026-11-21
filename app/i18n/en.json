@@ -308,6 +308,7 @@
   "dock.confirm.remove_volume": "Remove this volume? Data inside it is lost.",
   "dock.confirm.remove_network": "Remove this network?",
   "dock.confirm.compose_down": "Stop and remove this stack? Containers will be deleted.",
+  "dock.confirm.compose_down_service": "Stop and remove this service? Its container will be deleted.",
   "dock.confirm.prune": "Delete all unused resources of the selected kinds?",
   "dock.reason.missing": "Docker is not installed on this host.",
   "dock.reason.daemon": "The Docker daemon is not running.",

@@ -791,13 +791,31 @@ class Docker:
             return False
         return False
 
-    def compose_argv(self, project: str, action: str, remove_volumes: bool = False) -> tuple[list[str], str]:
-        """Return (argv, error). The argv excludes the ``docker`` prefix."""
+    def compose_argv(
+        self,
+        project: str,
+        action: str,
+        remove_volumes: bool = False,
+        service: str = "",
+    ) -> tuple[list[str], str]:
+        """Return (argv, error). The argv excludes the ``docker`` prefix.
+
+        ``service`` is only meaningful for ``up`` and ``down``; other actions
+        keep operating on the whole project.
+        """
         if action not in COMPOSE_ACTIONS:
             return [], "Unknown compose action"
         entry = self._project(project)
         if not entry:
             return [], "Unknown compose project"
+        service = (service or "").strip()
+        if service:
+            if action not in ("up", "down"):
+                return [], "Service target is only supported for up and down"
+            if not valid_name(service):
+                return [], "Invalid service name"
+            if not any(row["name"] == service for row in entry.get("services", [])):
+                return [], "Unknown service in project"
         workdir = entry.get("dir") or ""
         files = entry.get("files") or ""
         if not workdir or not files:
@@ -825,6 +843,8 @@ class Docker:
                 args += ["--volumes"]
         else:
             args.append(action)
+        if service:
+            args.append(service)
         return args, ""
 
     def compose_file(self, project: str) -> dict[str, Any]:
