@@ -15,8 +15,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# /opt/piweb/scripts/check_alerts.py -> /opt/piweb
-APP_ROOT = Path(__file__).resolve().parent.parent
+# Locate the directory that contains the `app` package, regardless of whether
+# this script lives in scripts/ or scripts/examples/.
+APP_ROOT = next(
+    (parent for parent in Path(__file__).resolve().parents if (parent / "app" / "__init__.py").is_file()),
+    Path(__file__).resolve().parent.parent,
+)
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
