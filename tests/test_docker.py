@@ -101,6 +101,41 @@ DF_JSON = "\n".join(
     ]
 )
 
+NETWORK_INSPECT_JSON = json.dumps(
+    {
+        "Name": "services_default",
+        "Id": "e" * 64,
+        "Created": "2026-11-18T10:00:00Z",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": False,
+        "IPAM": {
+            "Driver": "default",
+            "Config": [
+                {
+                    "Subnet": "172.20.0.0/16",
+                    "Gateway": "172.20.0.1",
+                    "AuxiliaryAddresses": {"host1": "172.20.0.5"},
+                }
+            ],
+        },
+        "Internal": False,
+        "Attachable": True,
+        "Ingress": False,
+        "Containers": {
+            "a" * 64: {
+                "Name": "cloudreve",
+                "EndpointID": "ep-1",
+                "MacAddress": "02:42:ac:14:00:02",
+                "IPv4Address": "172.20.0.2/16",
+                "IPv6Address": "",
+            }
+        },
+        "Options": {"com.docker.network.bridge.name": "br-services"},
+        "Labels": {"com.docker.compose.project": "services"},
+    }
+)
+
 INFO_JSON = json.dumps(
     {
         "ServerVersion": "29.7.2",
@@ -209,6 +244,8 @@ class Stub:
             )
         if head in {"start", "stop", "restart", "pause", "unpause", "kill", "rename", "rm", "tag"}:
             return CommandResult(stdout="")
+        if head == "network" and "inspect" in sub:
+            return CommandResult(stdout=NETWORK_INSPECT_JSON)
         if head in {"volume", "network"}:
             return CommandResult(stdout="")
         return CommandResult(returncode=1, stderr="unsupported in stub")
@@ -361,6 +398,40 @@ def test_logs_clamp_the_line_count_and_reject_bad_since(tmp_path: Path):
     # An invalid value is dropped instead of being passed to the shell.
     client.logs("cloudreve", lines=10, since="; rm -rf /")
     assert "--since" not in stub.commands[-1]
+
+
+def test_network_inspect_curates_ipam_and_containers(tmp_path: Path):
+    stub = Stub()
+    data = Docker(make_settings(tmp_path), stub).network_inspect("services_default")
+    assert stub.commands[-1] == [
+        "docker", "network", "inspect", "--format", "{{json .}}", "services_default"
+    ]
+    assert data["ok"] is True
+    assert data["name"] == "services_default"
+    assert data["driver"] == "bridge"
+    assert data["scope"] == "local"
+    assert data["attachable"] is True
+    assert data["ipv6"] is False
+    assert data["ipam_driver"] == "default"
+    assert data["subnets"][0]["subnet"] == "172.20.0.0/16"
+    assert data["subnets"][0]["gateway"] == "172.20.0.1"
+    assert data["subnets"][0]["aux_addresses"] == {"host1": "172.20.0.5"}
+    assert data["containers"][0]["name"] == "cloudreve"
+    assert data["containers"][0]["ipv4"] == "172.20.0.2/16"
+    assert data["options"]["com.docker.network.bridge.name"] == "br-services"
+    assert data["labels"]["com.docker.compose.project"] == "services"
+
+
+def test_network_inspect_reports_bad_output(tmp_path: Path):
+    class BrokenStub(Stub):
+        def run_argv(self, argv, timeout: float = 30.0, input: str | None = None):
+            if argv[1:2] == ["network"] and "inspect" in argv:
+                return CommandResult(stdout="not json")
+            return super().run_argv(argv, timeout, input)
+
+    data = Docker(make_settings(tmp_path), BrokenStub()).network_inspect("x")
+    assert data["ok"] is False
+    assert data["error"]
 
 
 def test_prune_argv_combinations(tmp_path: Path):
@@ -544,6 +615,18 @@ def test_page_renders_all_tabs(client: TestClient):
     assert "dockerUnavailable" in body
 
 
+def test_container_more_menu_escapes_the_table_scroll_box(client: TestClient):
+    """The three-dots dropdown must not be clipped by .table-responsive.
+
+    The containers table scrolls horizontally. An absolutely positioned
+    dropdown inside it gets cut off and stretches the table into showing a
+    stray vertical scrollbar, so the menu is anchored to the viewport instead.
+    """
+    html = client.get("/docker").text
+    assert "bootstrap.Dropdown.getOrCreateInstance(toggle" in html
+    assert "popperConfig: { strategy: 'fixed' }" in html
+
+
 def test_page_is_hidden_when_the_module_is_off(tmp_path: Path):
     settings = make_settings(tmp_path, docker_enabled=False)
     with TestClient(create_app(settings)) as off_client:
@@ -555,6 +638,27 @@ def test_ps_endpoint_returns_containers(client: TestClient):
     data = client.get("/ajax/docker/ps").json()
     assert data["available"] is True
     assert [row["name"] for row in data["containers"]] == ["cloudreve", "xunlei"]
+
+
+def test_network_inspect_endpoint_returns_details(client: TestClient):
+    data = client.get("/ajax/docker/networks/services_default/inspect").json()
+    assert data["ok"] is True
+    assert data["network"]["name"] == "services_default"
+    assert data["network"]["subnets"][0]["gateway"] == "172.20.0.1"
+    assert [c["name"] for c in data["network"]["containers"]] == ["cloudreve"]
+
+
+def test_network_inspect_endpoint_rejects_bad_names(client: TestClient):
+    response = client.get("/ajax/docker/networks/bad%20name/inspect")
+    assert response.status_code == 400
+    assert response.json()["ok"] is False
+
+
+def test_page_wires_network_details_button(client: TestClient):
+    html = client.get("/docker").text
+    assert "openNetworkDetails(network.name)" in html
+    assert "/ajax/docker/networks/' + encodeURIComponent(name) + '/inspect" in html
+    assert 'id="dockerDetailsIcon"' in html
 
 
 def test_ps_endpoint_degrades_when_the_daemon_is_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

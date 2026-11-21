@@ -564,6 +564,62 @@ class Docker:
         rows.sort(key=lambda row: row["name"].lower())
         return _cache_put("networks", rows)
 
+    def network_inspect(self, name: str) -> dict[str, Any]:
+        result = self.run("network", "inspect", "--format", "{{json .}}", name, timeout=20)
+        if not result.ok:
+            return {"ok": False, "error": result.output or "inspect failed"}
+        try:
+            raw = json.loads(result.stdout.strip())
+        except ValueError:
+            return {"ok": False, "error": "Unexpected inspect output"}
+        if not isinstance(raw, dict):
+            return {"ok": False, "error": "Unexpected inspect output"}
+
+        ipam = raw.get("IPAM") or {}
+        subnets = [
+            {
+                "subnet": str(item.get("Subnet", "")),
+                "gateway": str(item.get("Gateway", "")),
+                "ip_range": str(item.get("IPRange", "")),
+                "aux_addresses": {
+                    str(host): str(ip) for host, ip in (item.get("AuxiliaryAddresses") or {}).items()
+                },
+            }
+            for item in (ipam.get("Config") or [])
+            if isinstance(item, dict)
+        ]
+        containers = []
+        attached = raw.get("Containers") or {}
+        for cid, detail in attached.items():
+            detail = detail or {}
+            containers.append(
+                {
+                    "id": str(cid),
+                    "name": str(detail.get("Name", "")),
+                    "ipv4": str(detail.get("IPv4Address", "")),
+                    "ipv6": str(detail.get("IPv6Address", "")),
+                    "mac": str(detail.get("MacAddress", "")),
+                }
+            )
+        containers.sort(key=lambda row: row["name"].lower())
+        return {
+            "ok": True,
+            "id": str(raw.get("Id", "")),
+            "name": str(raw.get("Name", "")),
+            "driver": str(raw.get("Driver", "")),
+            "scope": str(raw.get("Scope", "")),
+            "created": str(raw.get("Created", "")),
+            "ipv6": bool(raw.get("EnableIPv6")),
+            "internal": bool(raw.get("Internal")),
+            "attachable": bool(raw.get("Attachable")),
+            "ingress": bool(raw.get("Ingress")),
+            "ipam_driver": str(ipam.get("Driver", "")),
+            "subnets": subnets,
+            "containers": containers,
+            "options": {str(k): str(v) for k, v in (raw.get("Options") or {}).items()},
+            "labels": {str(k): str(v) for k, v in (raw.get("Labels") or {}).items()},
+        }
+
     # -- system --------------------------------------------------------------
 
     def df(self) -> dict[str, Any]:

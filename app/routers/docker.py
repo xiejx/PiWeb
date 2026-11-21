@@ -177,6 +177,18 @@ def docker_networks(request: Request):
     return JSONResponse({"ok": True, "networks": docker.networks()})
 
 
+@router.get("/ajax/docker/networks/{name}/inspect")
+def docker_network_inspect(request: Request, name: str):
+    _, docker = _context(request)
+    if not valid_name(name):
+        return _failure("Invalid network name")
+    data = docker.network_inspect(name)
+    if not data.get("ok"):
+        return JSONResponse({"ok": False, "error": data.get("error", "inspect failed")})
+    data.pop("ok", None)
+    return JSONResponse({"ok": True, "network": data})
+
+
 @router.get("/ajax/docker/compose")
 def docker_compose(request: Request):
     settings, docker = _context(request)

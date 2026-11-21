@@ -293,7 +293,7 @@
 
 <div class="offcanvas offcanvas-end" tabindex="-1" id="dockerDetails" aria-labelledby="dockerDetailsTitle" style="width: min(620px, 100vw)">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="dockerDetailsTitle"><i class="bi bi-box-seam me-1"></i><span id="dockerDetailsName"></span></h5>
+        <h5 class="offcanvas-title" id="dockerDetailsTitle"><i class="bi bi-box-seam me-1" id="dockerDetailsIcon"></i><span id="dockerDetailsName"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ t('common.close', 'Close') }}"></button>
     </div>
     <div class="offcanvas-body small" id="dockerDetailsBody"></div>
@@ -436,7 +436,26 @@
         labelTag: {{ t('dock.images.tag', 'Tag')|tojson }},
         labelUp: {{ t('dock.compose.up', 'Up')|tojson }},
         labelDown: {{ t('dock.compose.down', 'Down')|tojson }},
-        labelFile: {{ t('dock.compose.file', 'Compose file')|tojson }}
+        labelFile: {{ t('dock.compose.file', 'Compose file')|tojson }},
+        netDetails: {
+            general: {{ t('dock.networks.general', 'Overview')|tojson }},
+            subnets: {{ t('dock.networks.subnets', 'IPAM configuration')|tojson }},
+            attached: {{ t('dock.networks.attached', 'Connected containers')|tojson }},
+            options: {{ t('dock.networks.options', 'Options')|tojson }},
+            ipamDriver: {{ t('dock.networks.ipam_driver', 'IPAM driver')|tojson }},
+            subnet: {{ t('dock.networks.subnet', 'Subnet')|tojson }},
+            gateway: {{ t('dock.networks.gateway', 'Gateway')|tojson }},
+            ipRange: {{ t('dock.networks.ip_range', 'IP range')|tojson }},
+            auxAddresses: {{ t('dock.networks.aux_addresses', 'Auxiliary addresses')|tojson }},
+            created: {{ t('dock.networks.created', 'Created')|tojson }},
+            ipv6: {{ t('dock.networks.enable_ipv6', 'IPv6')|tojson }},
+            internal: {{ t('dock.networks.internal', 'Internal')|tojson }},
+            attachable: {{ t('dock.networks.attachable', 'Attachable')|tojson }},
+            ingress: {{ t('dock.networks.ingress', 'Ingress')|tojson }},
+            noContainers: {{ t('dock.networks.no_containers', 'No connected containers.')|tojson }},
+            yes: {{ t('dock.networks.yes', 'Yes')|tojson }},
+            no: {{ t('dock.networks.no', 'No')|tojson }}
+        }
     };
 
     const stateBadgeClass = {
@@ -637,6 +656,15 @@
         });
         wrap.appendChild(toggle);
         wrap.appendChild(menu);
+        // The containers table sits inside .table-responsive (overflow-x: auto).
+        // A default dropdown is absolutely positioned within that scrolling box,
+        // so opening it is clipped and stretches the table into showing a stray
+        // scrollbar. Fixed positioning anchors the menu to the viewport instead.
+        if (window.bootstrap && window.bootstrap.Dropdown) {
+            window.bootstrap.Dropdown.getOrCreateInstance(toggle, {
+                popperConfig: { strategy: 'fixed' }
+            });
+        }
         return wrap;
     }
 
@@ -712,6 +740,7 @@
     }
 
     async function openDetails(item) {
+        $('dockerDetailsIcon').className = 'bi bi-box-seam me-1';
         $('dockerDetailsName').textContent = item.name;
         const body = $('dockerDetailsBody');
         body.textContent = '…';
@@ -1050,8 +1079,10 @@
             tr.appendChild(cell(network.driver, 'small'));
             tr.appendChild(cell(network.scope, 'text-body-secondary small'));
             tr.appendChild(cell(network.short_id, 'text-body-secondary mono small'));
-            const actions = el('td', 'text-end pe-2');
+            const actions = el('td', 'text-end pe-2 text-nowrap');
+            actions.appendChild(button(T.labelDetails, 'bi-list-ul', 'secondary', () => openNetworkDetails(network.name)));
             if (!builtIn.includes(network.name)) {
+                actions.appendChild(document.createTextNode(' '));
                 actions.appendChild(button(T.labelRemove, 'bi-trash', 'danger', async () => {
                     if (!(await api.confirm(T.confirmRemoveNetwork))) return;
                     networkAction('rm', network.name, null);
@@ -1075,6 +1106,58 @@
             td.colSpan = 5;
             tr.appendChild(td);
             tbody.appendChild(tr);
+        }
+    }
+
+    async function openNetworkDetails(name) {
+        $('dockerDetailsIcon').className = 'bi bi-share me-1';
+        $('dockerDetailsName').textContent = name;
+        const body = $('dockerDetailsBody');
+        body.textContent = '…';
+        bootstrap.Offcanvas.getOrCreateInstance($('dockerDetails')).show();
+        const D = T.netDetails;
+        const yesNo = (value) => value ? D.yes : D.no;
+        try {
+            const data = await api.api('/ajax/docker/networks/' + encodeURIComponent(name) + '/inspect');
+            if (!data.ok) {
+                body.textContent = data.error || T.failed;
+                return;
+            }
+            const n = data.network;
+            body.innerHTML = '';
+            body.appendChild(section(D.general, kvList([
+                ['{{ t('dock.name', 'Name') }}', n.name],
+                ['{{ t('dock.id', 'ID') }}', n.id],
+                ['{{ t('dock.driver', 'Driver') }}', n.driver],
+                ['{{ t('dock.scope', 'Scope') }}', n.scope],
+                [D.created, n.created],
+                [D.ipv6, yesNo(n.ipv6)],
+                [D.internal, yesNo(n.internal)],
+                [D.attachable, yesNo(n.attachable)],
+                [D.ingress, yesNo(n.ingress)]
+            ])));
+            const subnetRows = (n.subnets || []).map((s) => {
+                const parts = [s.subnet, s.gateway ? (D.gateway + ': ' + s.gateway) : '',
+                    s.ip_range ? (D.ipRange + ': ' + s.ip_range) : ''].filter(Boolean);
+                const aux = Object.keys(s.aux_addresses || {}).map((host) => host + '=' + s.aux_addresses[host]);
+                return parts.concat(aux).join(' · ');
+            });
+            const ipamWrap = el('div');
+            if (n.ipam_driver) ipamWrap.appendChild(el('div', 'mb-1', D.ipamDriver + ': ' + n.ipam_driver));
+            ipamWrap.appendChild(bulletList(subnetRows));
+            body.appendChild(section(D.subnets, ipamWrap));
+            body.appendChild(section(D.attached, bulletList(
+                (n.containers || []).map((c) => c.name + (c.ipv4 ? ' · ' + c.ipv4 : '') + (c.mac ? ' · ' + c.mac : '')),
+                D.noContainers
+            )));
+            body.appendChild(section(D.options, bulletList(
+                Object.keys(n.options || {}).map((key) => key + '=' + n.options[key]))
+            ));
+            body.appendChild(section('{{ t('dock.details.labels', 'Labels') }}', bulletList(
+                Object.keys(n.labels || {}).map((key) => key + '=' + n.labels[key]))
+            ));
+        } catch (err) {
+            body.textContent = err.message || T.failed;
         }
     }
 
