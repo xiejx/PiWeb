@@ -34,8 +34,24 @@ PUBLIC_PREFIXES = (
 
 PBKDF2_ITERATIONS = 260_000
 
+# Passwords that ship with PiWeb / are used as placeholders. Refuse them when
+# a user picks a password so an install is never left with a known credential.
+WEAK_PASSWORDS = {"raspberry", "password", "secret", "piweb", "admin"}
+
 
 # ── Passwords ────────────────────────────────────────────────────────────────
+
+def password_policy_errors(password: str) -> list[str]:
+    """Return validation messages for a proposed password (empty means OK)."""
+    errors: list[str] = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters.")
+    if password.lower() in WEAK_PASSWORDS:
+        errors.append(
+            "That password is one of the well-known defaults — choose another."
+        )
+    return errors
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)

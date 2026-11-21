@@ -151,6 +151,43 @@
 </div>
 
 <div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-key me-1"></i>{{ t('check.password', 'Login password') }}</span>
+        <span class="mono small text-body-secondary">{{ login_user }}</span>
+    </div>
+    <div class="card-body" id="password-panel">
+        {% if system_auth %}
+            <p class="mb-0">{{ t('check.password_system', 'Login uses a system account. Change this user\'s password on the host with passwd — the password stored in config.toml is not used.') }}</p>
+        {% else %}
+            <p class="muted-small">{{ t('check.password_hint', 'Change the password for the current login. Enter your current password to confirm. At least 8 characters; avoid common defaults.') }}</p>
+            <form onsubmit="return changePassword(event)">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small" for="pw-current">{{ t('check.password_current', 'Current password') }}</label>
+                        <input type="password" class="form-control form-control-sm" id="pw-current"
+                               autocomplete="current-password" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small" for="pw-new">{{ t('check.password_new', 'New password') }}</label>
+                        <input type="password" class="form-control form-control-sm" id="pw-new"
+                               autocomplete="new-password" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small" for="pw-confirm">{{ t('check.password_confirm', 'Repeat new password') }}</label>
+                        <input type="password" class="form-control form-control-sm" id="pw-confirm"
+                               autocomplete="new-password" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary mt-3" id="pw-submit">
+                    <i class="bi bi-shield-lock me-1"></i>{{ t('check.password_submit', 'Change password') }}
+                </button>
+                <p id="password-msg" class="mt-2 mb-0 d-none"></p>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mt-3">
     <div class="card-header"><i class="bi bi-box-arrow-in-right me-1"></i>{{ t('check.auth_log', 'Recent sign-in activity') }}</div>
     {% if auth_events %}
         <div class="table-responsive">
@@ -190,6 +227,39 @@
         if (!element) return;
         element.className = 'mt-2 mb-0 text-' + (tone || 'body-secondary');
         element.textContent = message;
+    }
+
+    async function changePassword(event) {
+        event.preventDefault();
+        const button = document.getElementById('pw-submit');
+        const current = document.getElementById('pw-current');
+        const next = document.getElementById('pw-new');
+        const confirm = document.getElementById('pw-confirm');
+        const msg = 'password-msg';
+        if (next.value !== confirm.value) {
+            setNotice(msg, {{ t('check.password_mismatch', 'The two new passwords do not match.')|tojson }}, 'danger');
+            return false;
+        }
+        button.disabled = true;
+        try {
+            const data = await PiWeb.api('/ajax/check/password', {
+                method: 'POST',
+                body: {
+                    current_password: current.value,
+                    new_password: next.value,
+                    confirm_password: confirm.value
+                }
+            });
+            current.value = '';
+            next.value = '';
+            confirm.value = '';
+            setNotice(msg, data.message || {{ t('check.password_ok', 'Password changed.')|tojson }}, 'success');
+        } catch (error) {
+            setNotice(msg, error.message, 'danger');
+        } finally {
+            button.disabled = false;
+        }
+        return false;
     }
 
     async function applyFix(key, button) {

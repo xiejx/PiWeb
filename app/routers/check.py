@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from ..alerts import configured as alerts_configured
 from ..alerts import send_alert
+from ..config import save_auth_credentials
 from ..executor import environment_ok, get_executor
 from ..security import (
     auth_configured,
@@ -20,10 +21,13 @@ from ..security import (
     auth_log_recent,
     client_ip,
     default_credentials,
+    hash_password,
     open_mode,
+    password_policy_errors,
     totp_match,
     totp_new_secret,
     totp_provisioning_uri,
+    verify_password,
 )
 from ..system import pi_model
 from ..templating import render
@@ -45,6 +49,8 @@ AUTH_LABELS = {
     "locked": ("warning", "Locked out"),
     "expired": ("secondary", "Session expired"),
     "logout": ("secondary", "Signed out"),
+    "password_changed": ("success", "Password changed"),
+    "password_change_failed": ("danger", "Password change failed"),
 }
 
 ALERT_TEXT = "PiWeb test alert"
@@ -415,6 +421,8 @@ def check_page(request: Request):
         python_version=platform.python_version(),
         auth_events=_auth_events(settings),
         totp_on=bool(settings.login_totp_secret),
+        system_auth=bool(settings.login_check_system_user),
+        login_user=settings.login_user,
         alerts_on=_alerts_configured(settings),
         alert_temp=settings.alert_temp_threshold,
         alert_disk=settings.alert_disk_threshold,
@@ -469,6 +477,76 @@ async def check_fix(request: Request):
 @router.post("/ajax/check/rerun")
 def check_rerun(request: Request):
     return JSONResponse({"ok": True})
+
+
+# ── Password change ─────────────────────────────────────────────────────────
+
+@router.post("/ajax/check/password")
+async def password_change(request: Request):
+    """Change the login password stored in config.toml.
+
+    Requires the current password so a stolen session alone is not enough.
+    The session is intentionally left valid: it keys off the username, not the
+    password, so the user is not signed out on a successful change.
+    """
+    settings = request.app.state.settings
+    ip = client_ip(request, settings)
+    agent = request.headers.get("user-agent", "")
+
+    if settings.login_check_system_user:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Login uses a system account — change that account's "
+                         "password on the host instead.",
+            },
+            status_code=400,
+        )
+
+    data = await _payload(request)
+    current = str(data.get("current_password", ""))
+    new = str(data.get("new_password", ""))
+    confirm = str(data.get("confirm_password", ""))
+
+    if not verify_password(settings.login_pass, current):
+        auth_log(
+            settings, "password_change_failed", "wrong current password",
+            ip, agent,
+        )
+        return JSONResponse(
+            {"ok": False, "error": "Current password is incorrect."},
+            status_code=400,
+        )
+
+    errors = password_policy_errors(new)
+    if new != confirm:
+        errors.append("The two new passwords do not match.")
+    if errors:
+        return JSONResponse(
+            {"ok": False, "error": " ".join(errors)}, status_code=400
+        )
+
+    new_hash = hash_password(new)
+    try:
+        save_auth_credentials(_config_path(settings), settings.login_user, new_hash)
+    except OSError as exc:
+        return JSONResponse(
+            {"ok": False, "error": f"Could not write config.toml: {exc}"},
+            status_code=500,
+        )
+
+    # Update the in-memory copy so subsequent logins use the new password
+    # without a service restart (config.toml is otherwise read only at start).
+    settings.login_pass = new_hash
+    auth_log(
+        settings, "password_changed", f"user: {settings.login_user}", ip, agent
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "message": "Password changed. You can keep using this session.",
+        }
+    )
 
 
 # ── Two-factor authentication ───────────────────────────────────────────────

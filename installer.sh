@@ -11,6 +11,10 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 PIWEB_DIR="${PIWEB_DIR:-/opt/piweb}"
 PIWEB_USER="${PIWEB_USER:-piweb}"
 PIWEB_REPO="${PIWEB_REPO:-https://github.com/xiejx/PiWeb.git}"
+# First-run admin account. The username defaults to "admin" (override with
+# PIWEB_ADMIN_USER). The password is prompted for interactively during install;
+# if left blank or when running non-interactively, a random one is generated.
+PIWEB_ADMIN_USER="${PIWEB_ADMIN_USER:-admin}"
 SERVICE=piweb
 
 echo
@@ -109,20 +113,98 @@ sudo -u "$PIWEB_USER" "$PIWEB_DIR/.venv/bin/pip" install -r "$PIWEB_DIR/requirem
 
 # ── configuration ─────────────────────────────────────────────────────────────
 GENERATED_PASSWORD=""
+CREDS_WRITTEN=0
+ADMIN_PASSWORD=""
 if [ ! -f "$PIWEB_DIR/config.toml" ]; then
-    info "Creating config.toml with a random admin password..."
+    # Ask for the password on a real terminal. Leaving it blank generates a
+    # random one; without a TTY (piped/CI) we always generate to avoid hanging.
+    if [ -t 0 ]; then
+        echo
+        info "Set the password for admin user '$PIWEB_ADMIN_USER'."
+        info "At least 8 characters; leave blank to generate a random one."
+        while true; do
+            read -r -s -p "  Password: " ADMIN_PASSWORD; echo
+            if [ -z "$ADMIN_PASSWORD" ]; then
+                break
+            fi
+            if [ "${#ADMIN_PASSWORD}" -lt 8 ]; then
+                warn "Password must be at least 8 characters — try again."
+                continue
+            fi
+            case "${ADMIN_PASSWORD,,}" in
+                raspberry|password|secret|piweb|admin)
+                    warn "That is a well-known default password — choose another."
+                    continue
+                    ;;
+            esac
+            read -r -s -p "  Repeat password: " ADMIN_PASSWORD2; echo
+            if [ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD2" ]; then
+                warn "Passwords did not match — try again."
+                continue
+            fi
+            break
+        done
+        unset ADMIN_PASSWORD2
+    fi
+
     sudo cp "$PIWEB_DIR/config.example.toml" "$PIWEB_DIR/config.toml"
-    GENERATED_PASSWORD=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-16)
-    sudo -u "$PIWEB_USER" "$PIWEB_DIR/.venv/bin/python" - "$PIWEB_DIR" "$GENERATED_PASSWORD" <<'PY'
-import sys, pathlib
-root, password = pathlib.Path(sys.argv[1]), sys.argv[2]
+
+    if [ -n "$ADMIN_PASSWORD" ]; then
+        info "Creating config.toml with the password you entered..."
+    else
+        info "Creating config.toml with a random admin password..."
+        GENERATED_PASSWORD=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-16)
+        ADMIN_PASSWORD="$GENERATED_PASSWORD"
+    fi
+
+    # Validate the username, hash the password and write it back. The helper
+    # script lives in a file so stdin carries only the password — never argv
+    # (visible in ps) and never a heredoc (which would consume stdin).
+    SETUP_SCRIPT="$PIWEB_DIR/.setup_credentials.py"
+    cat > "$SETUP_SCRIPT" <<'PY'
+import re, sys, pathlib
+root = pathlib.Path(sys.argv[1])
+user = sys.argv[2]
+password = sys.stdin.read()
 sys.path.insert(0, str(root))
 from app.config import save_auth_credentials
-from app.security import hash_password
-save_auth_credentials(root / "config.toml", "admin", hash_password(password))
+from app.security import hash_password, password_policy_errors
+
+if not re.fullmatch(r"[A-Za-z0-9._@-]{1,50}", user):
+    raise SystemExit("PIWEB_ADMIN_USER must be 1-50 chars: letters, digits, . _ @ -")
+problems = password_policy_errors(password)
+if problems:
+    raise SystemExit("Invalid admin password: " + " ".join(problems))
+
+save_auth_credentials(root / "config.toml", user, hash_password(password))
 PY
+    sudo chown "$PIWEB_USER:$PIWEB_USER" "$SETUP_SCRIPT"
+    if ! printf '%s' "$ADMIN_PASSWORD" | sudo -u "$PIWEB_USER" \
+        "$PIWEB_DIR/.venv/bin/python" "$SETUP_SCRIPT" "$PIWEB_DIR" "$PIWEB_ADMIN_USER"; then
+        rm -f "$SETUP_SCRIPT"
+        error "Could not write admin credentials to config.toml — installation aborted."
+        exit 1
+    fi
+    rm -f "$SETUP_SCRIPT"
+
     sudo chown "$PIWEB_USER:$PIWEB_USER" "$PIWEB_DIR/config.toml"
     sudo chmod 600 "$PIWEB_DIR/config.toml"
+
+    # Verify the written hash is actually recognised as a configured login.
+    if ! sudo -u "$PIWEB_USER" "$PIWEB_DIR/.venv/bin/python" - "$PIWEB_DIR" <<'PY'
+import sys, pathlib
+root = pathlib.Path(sys.argv[1])
+sys.path.insert(0, str(root))
+from app.config import load_settings
+from app.security import auth_configured
+if not auth_configured(load_settings(root / "config.toml")):
+    raise SystemExit("credentials written to config.toml did not verify")
+PY
+    then
+        error "Credential self-check failed — installation aborted."
+        exit 1
+    fi
+    CREDS_WRITTEN=1
 else
     info "config.toml already exists — keeping your settings."
 fi
@@ -164,10 +246,14 @@ echo "   Installation complete"
 echo "======================================"
 echo
 info "Open:  http://${IP}/"
-if [ -n "$GENERATED_PASSWORD" ]; then
-    echo "  Username: admin"
-    echo "  Password: $GENERATED_PASSWORD"
-    warn "Store this password now — it is not shown again (it is stored hashed)."
+if [ "$CREDS_WRITTEN" -eq 1 ]; then
+    echo "  Username: $PIWEB_ADMIN_USER"
+    if [ -n "$GENERATED_PASSWORD" ]; then
+        echo "  Password: $GENERATED_PASSWORD"
+        warn "Store this password now — it is not shown again (it is stored hashed)."
+    else
+        echo "  Password: (the value you entered during installation)"
+    fi
 else
     echo "  Credentials: unchanged from your existing config.toml"
 fi

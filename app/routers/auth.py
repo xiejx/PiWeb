@@ -15,6 +15,7 @@ from ..security import (
     is_local_ip,
     login_locked_for,
     mark_login,
+    password_policy_errors,
     record_login_failure,
     totp_verify_login,
     verify_password,
@@ -157,10 +158,7 @@ def setup_submit(
 
     if not re.fullmatch(r"[A-Za-z0-9._@-]{1,50}", username):
         errors.append("Username must be 1–50 characters (letters, digits, and . _ @ - only).")
-    if len(password) < 8:
-        errors.append("Password must be at least 8 characters.")
-    if password.lower() in {"raspberry", "password", "secret", "piweb", "admin"}:
-        errors.append("That password is one of the well-known defaults — choose another.")
+    errors.extend(password_policy_errors(password))
     if password != password2:
         errors.append("The two passwords do not match.")
 

@@ -75,10 +75,26 @@ bash ./installer.sh
 1. 安装 `git`、`python3-venv`、`nginx` 以及 WiringPi / `raspi-gpio`；
 2. 创建 `piweb` 服务用户，并将其加入 `gpio`、`video`、`i2c`、`spi` 和 `docker` 组；
 3. 创建 `/opt/piweb/.venv` 并安装 `requirements.txt`；
-4. 写入 `config.toml`，其中包含一个**随机生成的管理员密码**（仅打印一次），以及面板所需命令的 `sudoers` 配置；
+4. 写入 `config.toml`（安装时会**提示输入管理员密码**，留空则随机生成），以及面板所需命令的 `sudoers` 配置；
 5. 安装并启动 `piweb.service`（Uvicorn）和 Nginx 站点。
 
-打开 `http://<树莓派地址>/`，用安装结束时打印的凭据登录（用户名为 `admin`）。
+打开 `http://<树莓派地址>/`，用安装结束时显示的凭据登录（用户名为 `admin`）。
+
+#### 安装时设置自己的密码
+
+在终端运行安装器时，脚本会提示输入两次密码（输入时不回显）：
+
+```bash
+bash installer.sh
+#   Password:
+#   Repeat password:
+```
+
+密码至少 8 位，且不能使用 `raspberry`、`password`、`secret`、`piweb`、`admin` 这些常见默认值；不合规会提示重输。直接回车留空则随机生成一个。无终端的非交互场景（如管道、CI）会自动改用随机密码，不会卡住。用户名默认为 `admin`，如需改动可设 `PIWEB_ADMIN_USER`（1–50 位字母数字及 `. _ @ -`）。密码经 stdin 写入（不出现在进程列表），写回后自动校验。注意：只有 `config.toml` **尚不存在**时才会设置，已存在的配置一律保留。
+
+#### 登录后修改密码
+
+登录面板后到「系统检查 → 登录密码」卡片，输入当前密码与新密码即可修改。修改只影响登录密码，哈希写回 `config.toml`，当前会话保持有效。若启用了系统账号登录（`check_system_user = true`），请在主机上用 `passwd` 修改，卡片会提示。
 
 > **HTTPS：** 在把面板暴露到公网之前，请运行 `sudo certbot --nginx`，并在 `config.toml` 中设置 `session.cookie_secure = true`。
 
@@ -166,7 +182,7 @@ sudo systemctl restart piweb
 | `[ui]`             | 默认语言、仪表盘服务徽章、Button API 的 IP 白名单、debug 开关                                              |
 | `[modules.*]`      | 模块标题、分组、启用标志，以及外部模块的 `url` / `iframe`                                                  |
 
-密码可以是明文，或 `pbkdf2_sha256$...` 哈希。**强烈建议存储哈希**：
+密码可以是明文，或 `pbkdf2_sha256$...` 哈希。**强烈建议存储哈希**。也可以直接在面板的「系统检查 → 登录密码」修改（会自动计算哈希并写回）；下面的命令行方式适合无法登录面板时：
 
 ```bash
 sudo -u piweb /opt/piweb/.venv/bin/python - <<'PY'
