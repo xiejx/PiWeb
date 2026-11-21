@@ -164,6 +164,7 @@ class Stub:
         self.version = version
         self.compose = compose
         self.reason = reason  # "", "missing", "daemon", "permission"
+        self.compose_services: list[str] | None = None  # None = no config output
         self.commands: list[list[str]] = []
         self.background: list[str] = []
 
@@ -191,6 +192,9 @@ class Stub:
             if not self.compose:
                 return CommandResult(returncode=1, stderr="docker: 'compose' is not a docker command")
             return CommandResult(stdout=self.compose + "\n")
+        if head == "compose" and "config" in sub and "--services" in sub:
+            names = self.compose_services or []
+            return CommandResult(stdout="".join(name + "\n" for name in names))
         if head == "ps":
             return CommandResult(stdout=PS_JSON)
         if head == "images":
@@ -461,6 +465,34 @@ def test_compose_projects_group_containers_by_label(tmp_path: Path):
     assert project["running"] == 1
     assert sorted(service["name"] for service in project["services"]) == ["cloudreve", "xunlei"]
     assert project["dir"] == "/home/pi/services"
+
+
+def test_compose_projects_restores_down_service_as_absent(tmp_path: Path):
+    docker_api.invalidate()
+    stub = Stub()
+    stub.compose_services = ["cloudreve", "xunlei", "webssh2"]  # webssh2 was `down`ed
+    project = Docker(make_settings(tmp_path), stub).compose_projects()[0]
+    by_name = {row["name"]: row for row in project["services"]}
+    assert set(by_name) == {"cloudreve", "xunlei", "webssh2"}
+    assert by_name["cloudreve"]["state"] == "running"  # container state preserved
+    assert by_name["xunlei"]["state"] == "exited"
+    assert by_name["webssh2"] == {
+        "name": "webssh2", "container": "", "state": "absent", "health": ""
+    }
+    assert project["total"] == 3
+    assert project["running"] == 1
+
+
+def test_compose_service_names_fall_back_on_failed_config(tmp_path: Path):
+    docker_api.invalidate()
+    client = Docker(make_settings(tmp_path), Stub())
+    entry = {
+        "name": "services",
+        "dir": "/home/pi/services",
+        "files": "/home/pi/services/docker-compose.yml",
+    }
+    assert client._compose_service_names(entry) == []  # Stub returns no config output
+    assert client.compose_projects()[0]["total"] == 2  # container-derived fallback
 
 
 def test_compose_up_uses_recorded_directory_and_project(tmp_path: Path):

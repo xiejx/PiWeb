@@ -464,6 +464,7 @@
         paused: 'badge-soft-warning',
         exited: 'badge-soft-muted',
         created: 'badge-soft-muted',
+        absent: 'badge-soft-muted',
         restarting: 'badge-soft-warning',
         dead: 'badge-soft-danger'
     };
@@ -867,12 +868,14 @@
                 controls.appendChild(stateBadge(service.state, service.health));
                 const svcUp = button(T.labelUp, 'bi-play-fill', 'success',
                     () => composeAction(project, 'up', service.name));
-                const svcDown = button(T.labelDown, 'bi-trash', 'danger', async () => {
-                    if (!(await api.confirm(T.confirmDownService))) return;
-                    composeAction(project, 'down', service.name);
-                });
                 controls.appendChild(svcUp);
-                controls.appendChild(svcDown);
+                if (service.state !== 'absent') {
+                    const svcDown = button(T.labelDown, 'bi-trash', 'danger', async () => {
+                        if (!(await api.confirm(T.confirmDownService))) return;
+                        composeAction(project, 'down', service.name);
+                    });
+                    controls.appendChild(svcDown);
+                }
                 li.appendChild(controls);
                 list.appendChild(li);
             });

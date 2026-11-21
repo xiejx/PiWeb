@@ -730,8 +730,60 @@ class Docker:
                     "health": container["health"],
                 }
             )
+        for entry in projects.values():
+            defined = self._compose_service_names(entry)
+            if not defined:
+                continue
+            # Merge container-derived state onto the defined-service baseline.
+            # Services whose container was removed by `down` stay in the list
+            # with an `absent` state so they can be brought back with `up`.
+            by_name = {row["name"]: row for row in entry["services"]}
+            merged: list[dict[str, Any]] = []
+            for name in defined:
+                row = by_name.pop(name, None)
+                if row is None:
+                    merged.append(
+                        {"name": name, "container": "", "state": "absent", "health": ""}
+                    )
+                else:
+                    merged.append(row)
+            merged.extend(by_name.values())  # keep any container-only services
+            entry["services"] = merged
+            entry["total"] = len(merged)
+
         rows = sorted(projects.values(), key=lambda item: item["name"].lower())
         return _cache_put("compose", rows)
+
+    def _compose_service_names(self, entry: dict[str, Any]) -> list[str]:
+        """List services defined in a project's compose file.
+
+        Returns an empty list when the file/dir is unavailable or `compose`
+        cannot be read, so callers fall back to the container-derived list.
+        """
+        workdir = entry.get("dir") or ""
+        files = entry.get("files") or ""
+        if not workdir or not files:
+            return []
+        cache_key = "compose:services:" + entry["name"] + ":" + files
+        cached = _cache_get(cache_key, 30.0)
+        if cached is not None:
+            return cached
+        file_paths = [part.strip() for part in files.split(",") if part.strip()]
+        for file_path in file_paths:
+            if not self.path_allowed(file_path) or self.unreadable(file_path):
+                return []
+        if not self.path_allowed(workdir) or self.unreadable(workdir):
+            return []
+
+        args = ["compose", "--project-directory", workdir]
+        for file_path in file_paths:
+            args += ["-f", file_path]
+        args += ["-p", entry["name"], "config", "--services"]
+        result = self.run(*args, timeout=15)
+        if not result.ok:
+            return []
+        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        return _cache_put(cache_key, names)
 
     def _project(self, name: str) -> dict[str, Any] | None:
         for project in self.compose_projects():
