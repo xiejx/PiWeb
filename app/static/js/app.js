@@ -157,6 +157,87 @@
         });
     }
 
+    // ---- text-input dialog -------------------------------------------------
+    //
+    // The shared sibling of confirmDialog(): a Bootstrap modal that asks for a
+    // single line of text instead of the blocking window.prompt(). It matches
+    // the panel theme, can mask the input for passwords, and resolves to null
+    // on cancel so callers can bail out exactly as they did with prompt().
+
+    let promptModal = null;
+    let promptResolve = null;
+    let promptOptions = {};
+
+    function settlePrompt(value) {
+        const resolve = promptResolve;
+        promptResolve = null;
+        if (resolve) resolve(value);
+    }
+
+    function promptDialog(message, defaultValue, options) {
+        options = options || {};
+        const el = document.getElementById("piwebPromptModal");
+        if (!el || !window.bootstrap || !window.bootstrap.Modal) {
+            return Promise.resolve(window.prompt(message, defaultValue || ""));
+        }
+
+        // Only one question can wait at a time: an older one is cancelled.
+        settlePrompt(null);
+        promptOptions = options;
+
+        const input = el.querySelector("#piwebPromptInput");
+        const title = el.querySelector("#piwebPromptTitleText");
+        const body = el.querySelector("#piwebPromptMessage");
+        const ok = el.querySelector("#piwebPromptOk");
+        const error = el.querySelector("#piwebPromptError");
+
+        if (title) title.textContent = options.title || el.dataset.defaultTitle || "";
+        if (body) body.textContent = message || "";
+        if (input) {
+            input.type = options.password ? "password" : "text";
+            input.value = defaultValue === undefined || defaultValue === null ? "" : String(defaultValue);
+            input.autocomplete = options.password ? "new-password" : "off";
+            input.classList.remove("is-invalid");
+        }
+        if (error) error.textContent = "";
+        if (ok) {
+            ok.textContent = options.ok || el.dataset.defaultOk || ok.textContent;
+            ok.className = "btn " + (options.okClass || "btn-primary");
+        }
+
+        return new Promise(function (resolve) {
+            promptResolve = resolve;
+            if (!promptModal) {
+                promptModal = new bootstrap.Modal(el);
+                el.addEventListener("hidden.bs.modal", function () { settlePrompt(null); });
+                el.querySelector("#piwebPromptOk").addEventListener("click", function () {
+                    if (!input) return;
+                    const current = promptOptions;
+                    const value = input.value;
+                    if (current.allowEmpty !== true && !value.trim()) {
+                        input.classList.add("is-invalid");
+                        if (error) error.textContent = current.emptyError || "";
+                        input.focus();
+                        return;
+                    }
+                    settlePrompt(value);
+                    promptModal.hide();
+                });
+                // Enter submits, just like the native prompt.
+                el.addEventListener("shown.bs.modal", function () {
+                    input.focus();
+                    input.select();
+                });
+                input.addEventListener("keydown", function (event) {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    el.querySelector("#piwebPromptOk").click();
+                });
+            }
+            promptModal.show();
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         applyTheme(currentTheme());
 
@@ -240,5 +321,5 @@
         event.detail.headers["X-CSRF-Token"] = CSRF;
     });
 
-    window.PiWeb = { toast, api, confirm: confirmDialog, csrf: CSRF };
+    window.PiWeb = { toast, api, confirm: confirmDialog, prompt: promptDialog, csrf: CSRF };
 })();

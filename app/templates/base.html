@@ -169,6 +169,37 @@
     </div>
 </div>
 
+{# Shared text-input dialog. PiWeb.prompt(message, value, options) in app.js
+   opens it and resolves with the entered text, or null when cancelled. #}
+<div class="modal fade" id="piwebPromptModal" tabindex="-1" aria-labelledby="piwebPromptTitle"
+     aria-hidden="true" data-default-ok="{{ t('confirm.ok', 'Confirm') }}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="piwebPromptTitle">
+                    <i class="bi bi-input-cursor-text"></i>
+                    <span id="piwebPromptTitleText"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="{{ t('common.close', 'Close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2 small" id="piwebPromptMessage"></p>
+                <input type="text" class="form-control" id="piwebPromptInput" autocomplete="off" spellcheck="false">
+                <div class="invalid-feedback" id="piwebPromptError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="piwebPromptCancel">
+                    {{ t('common.cancel', 'Cancel') }}
+                </button>
+                <button type="button" class="btn btn-primary" id="piwebPromptOk">
+                    {{ t('confirm.ok', 'Confirm') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="/static/vendor/bootstrap.bundle.min.js?v={{ asset_version }}"></script>
 <script src="/static/vendor/htmx.min.js?v={{ asset_version }}"></script>
 <script src="/static/vendor/alpine.min.js?v={{ asset_version }}" defer></script>

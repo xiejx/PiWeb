@@ -808,5 +808,7 @@
   "dock.networks.ingress": "Ingress",
   "dock.networks.no_containers": "No connected containers.",
   "dock.networks.yes": "Yes",
-  "dock.networks.no": "No"
+  "dock.networks.no": "No",
+  "wifi.password_prompt": "Password for \"{ssid}\" (leave empty for a saved profile):",
+  "wifi.password_title": "Wi-Fi password"
 }

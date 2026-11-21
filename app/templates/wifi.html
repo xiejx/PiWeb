@@ -192,7 +192,13 @@
         if (!saved) {
             const open = /open/i.test(String(window.wifiSecurity || ''));
             if (!open) {
-                const entered = window.prompt('Password for "' + ssid + '" (leave empty for a saved profile):', '');
+                const message = {{ t('wifi.password_prompt', 'Password for "{ssid}" (leave empty for a saved profile):')|tojson }}
+                    .replace('{ssid}', ssid);
+                const entered = await PiWeb.prompt(message, '', {
+                    title: {{ t('wifi.password_title', 'Wi-Fi password')|tojson }},
+                    password: true,
+                    allowEmpty: true
+                });
                 if (entered === null) return;
                 password = entered;
             }

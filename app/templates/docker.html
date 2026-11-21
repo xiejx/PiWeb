@@ -642,9 +642,11 @@
             if (!(await api.confirm(T.confirmKill))) return;
             act(item, 'kill', { signal: 'SIGKILL' });
         });
-        addItem(T.labelRename, () => {
-            const name = window.prompt(T.renamePrompt, item.name);
-            if (!name || name === item.name) return;
+        addItem(T.labelRename, async () => {
+            const name = await api.prompt(T.renamePrompt, item.name, {
+                title: T.labelRename, ok: T.labelRename
+            });
+            if (name === null || !name.trim() || name === item.name) return;
             act(item, 'rename', { name: name });
         });
         const divider = el('li');
@@ -958,9 +960,11 @@
             tr.appendChild(cell(image.size, 'small'));
             tr.appendChild(cell(image.created, 'text-body-secondary small'));
             const actions = el('td', 'text-end pe-2 text-nowrap');
-            actions.appendChild(button(T.labelTag, 'bi-tag', 'secondary', () => {
-                const target = window.prompt(T.tagPrompt, image.ref);
-                if (!target || target === image.ref) return;
+            actions.appendChild(button(T.labelTag, 'bi-tag', 'secondary', async () => {
+                const target = await api.prompt(T.tagPrompt, image.ref, {
+                    title: T.labelTag, ok: T.labelTag
+                });
+                if (target === null || !target.trim() || target === image.ref) return;
                 imageAction('tag', { ref: image.ref, target: target }, true);
             }));
             actions.appendChild(document.createTextNode(' '));

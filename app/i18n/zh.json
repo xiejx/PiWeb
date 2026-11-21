@@ -808,5 +808,7 @@
   "dock.networks.ingress": "入口网络",
   "dock.networks.no_containers": "没有连接的容器。",
   "dock.networks.yes": "是",
-  "dock.networks.no": "否"
+  "dock.networks.no": "否",
+  "wifi.password_prompt": "\"{ssid}\" 的密码（留空则使用已保存的配置）：",
+  "wifi.password_title": "Wi-Fi 密码"
 }

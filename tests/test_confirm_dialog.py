@@ -75,3 +75,31 @@ def test_no_template_calls_the_native_prompt():
             if pattern.search(line):
                 offenders.append(f"{path.name}:{number}: {line.strip()[:80]}")
     assert offenders == []
+
+
+def test_layout_ships_the_prompt_dialog(client: TestClient):
+    html = client.get("/actions").text
+    for marker in (
+        'id="piwebPromptModal"',
+        'id="piwebPromptInput"',
+        'id="piwebPromptOk"',
+        'id="piwebPromptCancel"',
+    ):
+        assert marker in html
+
+
+def test_app_js_exposes_the_prompt_dialog():
+    source = APP_JS.read_text(encoding="utf-8")
+    assert "prompt: promptDialog" in source
+    assert "options.password" in source
+    assert "settlePrompt(null)" in source
+
+
+def test_no_template_calls_the_native_window_prompt():
+    """window.prompt blocks the browser and ignores the panel theme."""
+    offenders = []
+    for path in sorted(TEMPLATES.rglob("*.html")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "window.prompt(" in line:
+                offenders.append(f"{path.name}:{number}: {line.strip()[:80]}")
+    assert offenders == []
