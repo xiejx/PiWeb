@@ -133,17 +133,31 @@ def mount_device(
     if not prepared.ok:
         raise RuntimeError(prepared.output or "Could not create the mount folder.")
 
-    result = _run_elevated(
-        executor, f"mount {options} {quoted_device} {quoted_target}", timeout=60
-    )
-    if not result.ok and disk["fstype"].startswith("ntfs"):
-        result = _run_elevated(
-            executor,
-            f"ntfs-3g {options} {quoted_device} {quoted_target}",
-            timeout=60,
+    def mount_command(prefix: str) -> str:
+        parts = [prefix]
+        if options:
+            parts.append(options)
+        parts.extend([quoted_device, quoted_target])
+        return " ".join(parts)
+
+    # NTFS has two local drivers: the in-kernel ntfs3 (fast, full write support)
+    # and the FUSE ntfs-3g fallback. Try the kernel driver first; older kernels
+    # without ntfs3 then still work through ntfs-3g. Other filesystems keep the
+    # plain mount, which auto-detects the type from the partition.
+    if disk["fstype"].startswith("ntfs"):
+        attempts = [mount_command("mount -t ntfs3"), mount_command("ntfs-3g")]
+    else:
+        attempts = [mount_command("mount")]
+
+    result = None
+    for command in attempts:
+        result = _run_elevated(executor, command, timeout=60)
+        if result.ok:
+            break
+    if result is None or not result.ok:
+        raise RuntimeError(
+            (result.output if result else "") or "Could not mount the device."
         )
-    if not result.ok:
-        raise RuntimeError(result.output or "Could not mount the device.")
     return f"Mounted {device} on {target}."
 
 
