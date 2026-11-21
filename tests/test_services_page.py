@@ -223,6 +223,24 @@ def test_services_partial_renders_sections(client: TestClient):
     assert "Timers" in response.text
 
 
+def test_unit_tables_have_a_scroll_cap(client: TestClient):
+    """A busy unit type must not push the following cards far down the page."""
+    body = client.get("/services").text
+    # Every type card wraps its table in the capped, vertically scrollable box.
+    assert body.count("table-responsive svc-table-scroll") == 7
+
+    css = (
+        Path(__file__).resolve().parents[1]
+        / "app" / "static" / "css" / "app.css"
+    ).read_text(encoding="utf-8")
+    assert ".svc-table-scroll" in css
+    assert "max-height" in css
+    assert "overflow-y: auto" in css
+    # The header stays put while a long table is scrolled.
+    assert ".svc-table-scroll thead th" in css
+    assert "position: sticky" in css
+
+
 def test_action_runs_systemctl_against_the_full_unit_name(client: TestClient):
     token = re.search(
         r'name="csrf-token" content="([^"]+)"', client.get("/services").text

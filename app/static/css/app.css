@@ -91,6 +91,22 @@ main {
     padding: 0.55rem 0.75rem;
 }
 
+/* Services: one card per unit type. A type with many units should not push the
+   following cards far down the page, so cap the table height and scroll inside
+   it once it grows past that. Keep the header visible while scrolling. */
+.svc-table-scroll {
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.svc-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: var(--bs-table-bg, var(--bs-body-bg));
+    box-shadow: inset 0 -1px 0 var(--bs-border-color);
+}
+
 .badge-soft-success { background: rgba(25, 135, 84, 0.14); color: #198754; }
 .badge-soft-danger  { background: rgba(220, 53, 69, 0.14); color: #dc3545; }
 .badge-soft-warning { background: rgba(255, 193, 7, 0.18); color: #997404; }
