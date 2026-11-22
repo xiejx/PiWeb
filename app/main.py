@@ -61,6 +61,7 @@ def create_app(settings=None) -> FastAPI:
         dashboard,
         docker,
         gpio,
+        links,
         logs,
         modules,
         packages,
@@ -89,6 +90,7 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(buttons.router, dependencies=protected)
     app.include_router(scripts.router, dependencies=protected)
     app.include_router(logs.router, dependencies=protected)
+    app.include_router(links.router, dependencies=protected)
     app.include_router(cron.router, dependencies=protected)
     app.include_router(packages.router, dependencies=protected)
     app.include_router(users.router, dependencies=protected)

@@ -23,6 +23,7 @@ SCRIPT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(sh|py|txt)$")
 FIXED_ENTRIES = (
     "config.toml",
     "data/menu_order.json",
+    "data/links.json",
     "buttons/buttons.json",
     "user_scripts/.pins.json",
 )
@@ -44,6 +45,8 @@ def target_path(settings: Settings, rel: str) -> Path | None:
         return settings.config_path or BASE_DIR / "config.toml"
     if rel == "data/menu_order.json":
         return settings.data_dir / "menu_order.json"
+    if rel == "data/links.json":
+        return settings.data_dir / "links.json"
     if rel == "buttons/buttons.json":
         return settings.buttons_dir / "buttons.json"
     if rel == "user_scripts/.pins.json":

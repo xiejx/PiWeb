@@ -25,6 +25,7 @@ DEFAULT_MODULES: dict[str, dict[str, Any]] = {
     "actions": {"title": "Actions", "enabled": True},
     "gpio": {"title": "GPIO", "enabled": True},
     "buttons": {"title": "Buttons", "enabled": True},
+    "links": {"title": "Web Navigation", "enabled": True},
     "rpi": {"title": "Raspberry Pi", "enabled": True},
     "sensors": {"title": "Sensors", "enabled": True},
     "wifi": {"title": "Wi-Fi", "enabled": True},

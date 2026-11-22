@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}{{ t('links.title', 'Web Navigation') }}{% endblock %}
+
+{% block content %}
+<div x-data="linkPage()">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-1">{{ t('links.title', 'Web Navigation') }}</h1>
+            <p class="text-body-secondary small mb-0">{{ t('links.subtitle', 'Your bookmarked sites, grouped and one click away.') }}</p>
+        </div>
+        <button type="button" class="btn btn-success" @click="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>{{ t('links.add', 'Add Link') }}
+        </button>
+    </div>
+
+    {% if load_error %}
+        <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ load_error }}
+        </div>
+    {% endif %}
+
+    {% if not links %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-bookmark-plus fs-1 text-body-secondary"></i>
+                <p class="mt-3 mb-1 fw-semibold">{{ t('links.empty_title', 'No links yet') }}</p>
+                <p class="text-body-secondary small mb-3">{{ t('links.empty', 'Click Add Link to bookmark your first site.') }}</p>
+                <button type="button" class="btn btn-primary btn-sm" @click="openAdd()">
+                    <i class="bi bi-plus-lg me-1"></i>{{ t('links.add', 'Add Link') }}
+                </button>
+            </div>
+        </div>
+    {% else %}
+        {% for group in groups %}
+            <section class="mb-4">
+                <h2 class="h6 text-body-secondary text-uppercase mb-3">
+                    <i class="bi bi-folder2-open me-1"></i>
+                    {% if group.name %}{{ group.name }}{% else %}{{ t('links.ungrouped', 'Uncategorised') }}{% endif %}
+                    <span class="badge rounded-pill text-bg-secondary ms-1">{{ group.links|length }}</span>
+                </h2>
+                <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-6 g-3">
+                    {% for link in group.links %}
+                        <div class="col" data-idx="{{ link.id }}"
+                             data-title="{{ link.title }}" data-url="{{ link.url }}"
+                             data-group="{{ link.group }}" data-icon="{{ link.icon }}">
+                            <div class="card h-100 link-card position-relative">
+                                <div class="card-body d-flex flex-column align-items-center text-center p-3">
+                                    <div class="link-badge mb-2 d-flex align-items-center justify-content-center">
+                                        {% if link.icon %}<span class="link-emoji">{{ link.icon }}</span>{% else %}<i class="bi bi-globe2"></i>{% endif %}
+                                    </div>
+                                    <a class="link-title stretched-link text-decoration-none text-body fw-semibold small"
+                                       href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                                       title="{{ link.url }}">{{ link.title }}</a>
+                                    <span class="text-body-secondary mt-1 text-truncate w-100" style="font-size:.75rem">{{ link.domain }}</span>
+                                </div>
+                                <div class="position-absolute top-0 end-0 p-1" style="z-index:2">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-link text-body-secondary p-1" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                title="{{ t('links.options', 'Options') }}">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <button type="button" class="dropdown-item"
+                                                        @click="openEdit({{ link.id }})">
+                                                    <i class="bi bi-pencil me-1"></i>{{ t('links.edit', 'Edit') }}
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button type="button" class="dropdown-item text-danger"
+                                                        @click="confirmDelete({{ link.id }})">
+                                                    <i class="bi bi-trash me-1"></i>{{ t('common.delete', 'Delete') }}
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<div class="modal fade" id="linkModal" tabindex="-1" aria-labelledby="linkModalLabel" aria-hidden="true"
+     x-data="linkForm()" x-init="init()" x-ref="linkModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="linkModalLabel">
+                    <span x-show="form.id === null">{{ t('links.add_title', 'Add Link') }}</span>
+                    <span x-show="form.id !== null">{{ t('links.edit_title', 'Edit Link') }}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="linkTitle">
+                        <i class="bi bi-tag me-1"></i>{{ t('links.title_label', 'Title') }}
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="linkTitle" maxlength="100" required
+                           x-model="form.title">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="linkUrl">
+                        <i class="bi bi-link-45deg me-1"></i>{{ t('links.url', 'URL') }}
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="linkUrl" required
+                           placeholder="https://example.com" x-model="form.url">
+                    <div class="form-text">{{ t('links.url_help', 'http(s) URLs only. Other schemes are rejected.') }}</div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-8">
+                        <label class="form-label" for="linkGroup">
+                            <i class="bi bi-folder me-1"></i>{{ t('links.group', 'Group') }}
+                            <small class="text-body-secondary">({{ t('common.optional', 'optional') }})</small>
+                        </label>
+                        <input type="text" class="form-control" id="linkGroup" maxlength="60"
+                               list="linkGroupOptions" x-model="form.group">
+                        <datalist id="linkGroupOptions">
+                            {% for group in groups %}{% if group.name %}<option value="{{ group.name }}"></option>{% endif %}{% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label" for="linkIcon">
+                            <i class="bi bi-emoji-smile me-1"></i>{{ t('links.icon', 'Icon') }}
+                            <small class="text-body-secondary">({{ t('common.optional', 'optional') }})</small>
+                        </label>
+                        <input type="text" class="form-control" id="linkIcon" maxlength="8"
+                               placeholder="🚀" x-model="form.icon">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {{ t('common.cancel', 'Cancel') }}
+                </button>
+                <button type="button" class="btn btn-primary" @click="save()" :disabled="saving">
+                    <i class="bi bi-save me-1"></i>{{ t('common.save', 'Save') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .link-card { transition: transform .12s ease, box-shadow .12s ease; }
+    .link-card:hover { transform: translateY(-2px); box-shadow: 0 .35rem .9rem rgba(0,0,0,.12); }
+    .link-badge {
+        width: 48px; height: 48px; border-radius: 14px;
+        background: var(--bs-secondary-bg, rgba(128,128,128,.15));
+        font-size: 1.5rem; color: var(--bs-secondary-color, #6c757d);
+    }
+    .link-emoji { line-height: 1; }
+    .link-title { overflow-wrap: anywhere; }
+</style>
+<script>
+    window.linkPage = function () {
+        return {
+            openAdd() {
+                window.dispatchEvent(new CustomEvent('piweb-link-edit', { detail: {
+                    id: null, title: "", url: "", group: "", icon: ""
+                }}));
+            },
+            openEdit(id) {
+                const col = document.querySelector('[data-idx="' + id + '"]');
+                if (!col) return;
+                window.dispatchEvent(new CustomEvent('piweb-link-edit', { detail: {
+                    id: id,
+                    title: col.dataset.title || '',
+                    url: col.dataset.url || '',
+                    group: col.dataset.group || '',
+                    icon: col.dataset.icon || ''
+                }}));
+            },
+            async confirmDelete(id) {
+                const col = document.querySelector('[data-idx="' + id + '"]');
+                const name = col ? (col.dataset.title || '') : '';
+                if (!(await PiWeb.confirm({{ t('links.confirm_delete', 'Delete this link?')|tojson }} + ' (' + name + ')'))) return;
+                try {
+                    await PiWeb.api('/ajax/links/delete', { method: 'POST', body: { id: id } });
+                    PiWeb.toast({{ t('links.deleted', 'Link deleted.')|tojson }});
+                    window.location.reload();
+                } catch (error) {
+                    PiWeb.toast(error.message, 'error');
+                }
+            }
+        };
+    };
+
+    window.linkForm = function () {
+        const modalEl = document.getElementById('linkModal');
+        return {
+            saving: false,
+            form: { id: null, title: "", url: "", group: "", icon: "" },
+            init() {
+                window.addEventListener('piweb-link-edit', (e) => {
+                    this.form = Object.assign({}, e.detail);
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    this.$nextTick(() => document.getElementById('linkTitle')?.focus());
+                });
+            },
+            async save() {
+                if (!this.form.title.trim() || !this.form.url.trim()) {
+                    PiWeb.toast({{ t('links.required', 'Title and URL are required.')|tojson }}, 'warning');
+                    return;
+                }
+                this.saving = true;
+                try {
+                    await PiWeb.api('/ajax/links/submit', {
+                        method: 'POST',
+                        body: {
+                            link_id: this.form.id === null ? '' : String(this.form.id),
+                            title: this.form.title,
+                            url: this.form.url,
+                            group: this.form.group,
+                            icon: this.form.icon
+                        }
+                    });
+                    PiWeb.toast({{ t('links.saved', 'Link saved.')|tojson }});
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    window.location.reload();
+                } catch (error) {
+                    PiWeb.toast(error.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            }
+        };
+    };
+</script>
+{% endblock %}
