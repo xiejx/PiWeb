@@ -184,5 +184,12 @@
   "links.emoji_tech": "Technik",
   "links.emoji_work": "Arbeit",
   "links.emoji_fun": "Spaß",
-  "links.emoji_life": "Leben"
+  "links.emoji_life": "Leben",
+  "links.emoji_download": "Download",
+  "links.emoji_cloud": "Cloud",
+  "links.emoji_social": "Soziales",
+  "links.emoji_shopping": "Einkaufen",
+  "links.emoji_study": "Lernen",
+  "links.emoji_health": "Gesundheit",
+  "links.emoji_ai": "KI-Tools"
 }

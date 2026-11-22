@@ -843,5 +843,12 @@
   "links.emoji_tech": "科技",
   "links.emoji_work": "办公",
   "links.emoji_fun": "娱乐",
-  "links.emoji_life": "生活"
+  "links.emoji_life": "生活",
+  "links.emoji_download": "下载",
+  "links.emoji_cloud": "网盘",
+  "links.emoji_social": "社交",
+  "links.emoji_shopping": "购物",
+  "links.emoji_study": "学习",
+  "links.emoji_health": "健康",
+  "links.emoji_ai": "AI 工具"
 }

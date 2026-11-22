@@ -184,5 +184,12 @@
   "links.emoji_tech": "Технології",
   "links.emoji_work": "Робота",
   "links.emoji_fun": "Розваги",
-  "links.emoji_life": "Життя"
+  "links.emoji_life": "Життя",
+  "links.emoji_download": "Завантаження",
+  "links.emoji_cloud": "Хмара",
+  "links.emoji_social": "Соцмережі",
+  "links.emoji_shopping": "Покупки",
+  "links.emoji_study": "Навчання",
+  "links.emoji_health": "Здоров'я",
+  "links.emoji_ai": "Інструменти ШІ"
 }

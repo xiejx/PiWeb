@@ -843,5 +843,12 @@
   "links.emoji_tech": "Tech",
   "links.emoji_work": "Work",
   "links.emoji_fun": "Fun",
-  "links.emoji_life": "Life"
+  "links.emoji_life": "Life",
+  "links.emoji_download": "Download",
+  "links.emoji_cloud": "Cloud drive",
+  "links.emoji_social": "Social",
+  "links.emoji_shopping": "Shopping",
+  "links.emoji_study": "Study",
+  "links.emoji_health": "Health",
+  "links.emoji_ai": "AI tools"
 }
