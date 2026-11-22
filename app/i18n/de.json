@@ -176,5 +176,13 @@
   "links.confirm_delete": "Diesen Link löschen?",
   "links.deleted": "Link gelöscht.",
   "links.saved": "Link gespeichert.",
-  "links.required": "Titel und URL sind erforderlich."
+  "links.required": "Titel und URL sind erforderlich.",
+  "links.pick_icon": "Symbol auswählen",
+  "links.pick_close": "Symbole ausblenden",
+  "links.clear_icon": "Löschen",
+  "links.emoji_common": "Häufig",
+  "links.emoji_tech": "Technik",
+  "links.emoji_work": "Arbeit",
+  "links.emoji_fun": "Spaß",
+  "links.emoji_life": "Leben"
 }

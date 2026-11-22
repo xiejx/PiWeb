@@ -835,5 +835,13 @@
   "links.confirm_delete": "Delete this link?",
   "links.deleted": "Link deleted.",
   "links.saved": "Link saved.",
-  "links.required": "Title and URL are required."
+  "links.required": "Title and URL are required.",
+  "links.pick_icon": "Pick an icon",
+  "links.pick_close": "Hide icons",
+  "links.clear_icon": "Clear",
+  "links.emoji_common": "Common",
+  "links.emoji_tech": "Tech",
+  "links.emoji_work": "Work",
+  "links.emoji_fun": "Fun",
+  "links.emoji_life": "Life"
 }

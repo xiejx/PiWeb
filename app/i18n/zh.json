@@ -835,5 +835,13 @@
   "links.confirm_delete": "确定删除这个网址吗？",
   "links.deleted": "网址已删除。",
   "links.saved": "网址已保存。",
-  "links.required": "名称和网址为必填项。"
+  "links.required": "名称和网址为必填项。",
+  "links.pick_icon": "选择图标",
+  "links.pick_close": "收起图标",
+  "links.clear_icon": "清除",
+  "links.emoji_common": "常用",
+  "links.emoji_tech": "科技",
+  "links.emoji_work": "办公",
+  "links.emoji_fun": "娱乐",
+  "links.emoji_life": "生活"
 }

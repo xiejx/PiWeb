@@ -131,8 +131,39 @@
                             <i class="bi bi-emoji-smile me-1"></i>{{ t('links.icon', 'Icon') }}
                             <small class="text-body-secondary">({{ t('common.optional', 'optional') }})</small>
                         </label>
-                        <input type="text" class="form-control" id="linkIcon" maxlength="8"
-                               placeholder="🚀" x-model="form.icon">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="linkIcon" maxlength="8"
+                                   placeholder="🚀" x-model="form.icon">
+                            <button class="btn btn-outline-secondary" type="button"
+                                    :title="pickerOpen ? {{ t('links.pick_close', 'Hide icons')|tojson }} : {{ t('links.pick_icon', 'Pick an icon')|tojson }}"
+                                    @click="pickerOpen = !pickerOpen">
+                                <i class="bi bi-emoji-smile"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3" x-show="pickerOpen" x-cloak>
+                    <div class="border rounded p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold">{{ t('links.pick_icon', 'Pick an icon') }}</span>
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none"
+                                    @click="form.icon = ''; pickerOpen = false">
+                                {{ t('links.clear_icon', 'Clear') }}
+                            </button>
+                        </div>
+                        <template x-for="group in emojis" :key="group.name">
+                            <div class="mb-2">
+                                <div class="small text-body-secondary mb-1" x-text="group.name"></div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <template x-for="icon in group.items" :key="icon">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary emoji-choice"
+                                                :class="form.icon === icon ? 'border-primary bg-primary-subtle' : ''"
+                                                @click="pickEmoji(icon)" x-text="icon"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -160,6 +191,8 @@
     }
     .link-emoji { line-height: 1; }
     .link-title { overflow-wrap: anywhere; }
+    [x-cloak] { display: none !important; }
+    .emoji-choice { font-size: 1.35rem; line-height: 1.2; padding: .15rem .5rem; }
 </style>
 <script>
     window.linkPage = function () {
@@ -197,15 +230,29 @@
 
     window.linkForm = function () {
         const modalEl = document.getElementById('linkModal');
+        const emojis = [
+            { name: {{ t('links.emoji_common', 'Common')|tojson }}, items: ['🚀','⭐','🔥','💡','✨','🎯','✅','❤️','👍','🎉','🏠','🌐'] },
+            { name: {{ t('links.emoji_tech', 'Tech')|tojson }}, items: ['💻','🖥️','📱','⌨️','🖱️','💾','🔧','⚙️','🤖','📡','🔌','🛰️'] },
+            { name: {{ t('links.emoji_work', 'Work')|tojson }}, items: ['📁','📊','📈','📝','📌','📎','🗂️','📅','📋','💼','🧮','🔖'] },
+            { name: {{ t('links.emoji_fun', 'Fun')|tojson }}, items: ['🎮','🎬','🎵','🎨','📷','🎧','⚽','🏆','🎲','🍿','🕹️','🎸'] },
+            { name: {{ t('links.emoji_life', 'Life')|tojson }}, items: ['☕','🍕','🛒','🌍','🌈','🌞','🌙','⛅','🌊','🚗','✈️','🏝️'] }
+        ];
         return {
             saving: false,
+            pickerOpen: false,
+            emojis: emojis,
             form: { id: null, title: "", url: "", group: "", icon: "" },
             init() {
                 window.addEventListener('piweb-link-edit', (e) => {
                     this.form = Object.assign({}, e.detail);
+                    this.pickerOpen = false;
                     bootstrap.Modal.getOrCreateInstance(modalEl).show();
                     this.$nextTick(() => document.getElementById('linkTitle')?.focus());
                 });
+            },
+            pickEmoji(icon) {
+                this.form.icon = icon;
+                this.pickerOpen = false;
             },
             async save() {
                 if (!this.form.title.trim() || !this.form.url.trim()) {

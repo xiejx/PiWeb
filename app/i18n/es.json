@@ -176,5 +176,13 @@
   "links.confirm_delete": "¿Eliminar este enlace?",
   "links.deleted": "Enlace eliminado.",
   "links.saved": "Enlace guardado.",
-  "links.required": "El título y la URL son obligatorios."
+  "links.required": "El título y la URL son obligatorios.",
+  "links.pick_icon": "Elegir un icono",
+  "links.pick_close": "Ocultar iconos",
+  "links.clear_icon": "Borrar",
+  "links.emoji_common": "Comunes",
+  "links.emoji_tech": "Tecnología",
+  "links.emoji_work": "Trabajo",
+  "links.emoji_fun": "Diversión",
+  "links.emoji_life": "Vida"
 }

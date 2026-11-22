@@ -176,5 +176,13 @@
   "links.confirm_delete": "Видалити це посилання?",
   "links.deleted": "Посилання видалено.",
   "links.saved": "Посилання збережено.",
-  "links.required": "Назва та URL обов'язкові."
+  "links.required": "Назва та URL обов'язкові.",
+  "links.pick_icon": "Вибрати іконку",
+  "links.pick_close": "Сховати іконки",
+  "links.clear_icon": "Очистити",
+  "links.emoji_common": "Поширені",
+  "links.emoji_tech": "Технології",
+  "links.emoji_work": "Робота",
+  "links.emoji_fun": "Розваги",
+  "links.emoji_life": "Життя"
 }
