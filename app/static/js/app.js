@@ -113,12 +113,12 @@
     // does not extend the layout) we fall back to the native prompt.
 
     let confirmModal = null;
-    let confirmResolve = null;
+    let currentConfirm = null;  // { resolve, answer } for the open dialog
 
     function settleConfirm(answer) {
-        const resolve = confirmResolve;
-        confirmResolve = null;
-        if (resolve) resolve(answer);
+        const dialog = currentConfirm;
+        currentConfirm = null;
+        if (dialog && dialog.resolve) dialog.resolve(answer);
     }
 
     function confirmDialog(message, options) {
@@ -142,14 +142,19 @@
         }
 
         return new Promise(function (resolve) {
-            confirmResolve = resolve;
+            currentConfirm = { resolve: resolve, answer: false };
             if (!confirmModal) {
                 confirmModal = new bootstrap.Modal(el);
-                // Escape, the close button and Cancel all hide the dialog
-                // without calling the OK handler, so the answer defaults to no.
-                el.addEventListener("hidden.bs.modal", function () { settleConfirm(false); });
+                // Resolve only after the fade-out completes. Resolving on the
+                // OK click left the modal still transitioning, so a second
+                // dialog (data-confirm-again) called show() too early and was
+                // ignored; the pending hidden event then settled it as false.
+                // Escape / Cancel / backdrop never set answer, so default no.
+                el.addEventListener("hidden.bs.modal", function () {
+                    if (currentConfirm) settleConfirm(currentConfirm.answer);
+                });
                 el.querySelector("#piwebConfirmOk").addEventListener("click", function () {
-                    settleConfirm(true);
+                    if (currentConfirm) currentConfirm.answer = true;
                     confirmModal.hide();
                 });
             }

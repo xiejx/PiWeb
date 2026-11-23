@@ -206,16 +206,29 @@ def actions_run(
         return RedirectResponse("/actions", status_code=303)
 
     if action == "shutdown":
-        # Detach the power-off so this response can reach the browser first.
-        executor.run(
-            "nohup sh -c 'sleep 2; sudo poweroff' >/dev/null 2>&1 &", timeout=15
-        )
-        request.session["action_result"] = {
-            "level": "warning",
-            "message": "Shutdown scheduled — the Pi will power off in 2 seconds.",
-            "command": "sudo poweroff",
-            "output": "Shutting down. The panel will become unreachable shortly.",
-        }
+        # Detach the power-off so this response can reach the browser first,
+        # but keep its output in a log instead of /dev/null: a failed sudo used
+        # to be invisible while the page still claimed the shutdown was set.
+        log_name = "poweroff.log"
+        log_path = settings.command_logs_dir / log_name
+        result = executor.run_background("sleep 2; sudo poweroff", log_path)
+        if not result.ok:
+            request.session["action_result"] = {
+                "level": "danger",
+                "message": "Could not schedule shutdown.",
+                "command": "sudo poweroff",
+                "output": result.output[:20000],
+            }
+        else:
+            request.session["action_result"] = {
+                "level": "warning",
+                "message": "Shutdown scheduled — the Pi will power off in 2 seconds.",
+                "command": "sudo poweroff",
+                "output": (
+                    "If the Pi stays online, check command_logs/poweroff.log "
+                    "for the poweroff error."
+                ),
+            }
         auth_log(
             settings,
             "action",

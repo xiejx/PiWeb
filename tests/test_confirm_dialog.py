@@ -64,6 +64,39 @@ def test_app_js_exposes_the_dialog():
     assert source.count("return Promise.resolve(window.confirm(message))") == 1
 
 
+def test_double_confirm_settles_after_the_fade_out():
+    """Regression: OK must not resolve while the modal is still transitioning.
+
+    The shutdown form asks twice. The old handler resolved on the OK click and
+    hid the modal afterwards; the second dialog's show() then landed while the
+    first was still fading out and was ignored, and the first dialog's pending
+    hidden event settled the second promise as false. The form never posted,
+    so the Pi stayed on. Resolve on hidden.bs.modal instead, and let the OK
+    handler only record the answer.
+    """
+    source = APP_JS.read_text(encoding="utf-8")
+    ok_handler = re.search(
+        r'piwebConfirmOk"\)\.addEventListener\("click", function \(\) \{(.*?)\}\);',
+        source,
+        re.S,
+    )
+    assert ok_handler, "OK click handler not found"
+    # No settle/resolve on the click itself — only record the answer, then hide.
+    assert "settleConfirm" not in ok_handler.group(1)
+    assert "answer = true" in ok_handler.group(1)
+    assert "confirmModal.hide()" in ok_handler.group(1)
+
+    hidden_handler = re.search(
+        r'addEventListener\("hidden\.bs\.modal", function \(\) \{(.*?)\}\);',
+        source,
+        re.S,
+    )
+    assert hidden_handler, "hidden.bs.modal handler not found"
+    # The answer is settled once the fade-out has completed, using the answer
+    # recorded by the OK handler (default false for Escape / Cancel / backdrop).
+    assert "settleConfirm(currentConfirm.answer)" in hidden_handler.group(1)
+
+
 def test_no_template_calls_the_native_prompt():
     """A bare confirm(...) would bypass the modal and its translations."""
     pattern = re.compile(r"(?<![.\w])confirm\s*\(")
